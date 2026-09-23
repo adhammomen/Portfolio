@@ -16,7 +16,6 @@
 
     <!-- live terrain -->
     <canvas id="terrain" aria-hidden="true"></canvas>
-    <div class="grain" aria-hidden="true"></div>
 
     <!-- preloader -->
     <div class="loader" aria-hidden="true">
@@ -37,9 +36,9 @@
     <header class="hud hud-top">
       <a href="#top" class="logo" data-magnetic aria-label="Back to top"><span data-initials></span></a>
       <nav class="nav mono" aria-label="Primary">
-        <a href="#about" data-magnetic>About</a>
-        <a href="#work" data-magnetic>Work</a>
-        <a href="#contact" data-magnetic>Contact</a>
+        <a href="#about" data-magnetic data-scramble>About</a>
+        <a href="#work" data-magnetic data-scramble>Work</a>
+        <a href="#contact" data-magnetic data-scramble>Contact</a>
         <button class="sound" type="button" aria-pressed="false" data-sound>
           <span class="bars"><i></i><i></i><i></i></span><span data-sound-label>Sound</span>
         </button>
@@ -47,11 +46,24 @@
     </header>
     <div class="hud hud-bottom mono" aria-hidden="true">
       <span class="coords">X <b data-x>0.500</b> &nbsp;Y <b data-y>0.500</b></span>
+      <span class="log" data-log></span>
+      <span class="clock"><b data-clock>00:00:00</b> <span data-tz></span></span>
       <span class="elev">ELEV <b data-elev>0000</b> M</span>
       <button class="tilt mono" type="button" data-tilt hidden>Enable tilt</button>
     </div>
 
+    <!-- elevation profile rail -->
+    <aside class="rail" aria-hidden="true">
+      <svg class="rail-svg" viewBox="0 0 60 400" preserveAspectRatio="none">
+        <path class="rail-fill" d=""></path>
+        <path class="rail-line" d=""></path>
+      </svg>
+      <div class="rail-marker"><span class="mono" data-rail-label>Base camp</span></div>
+      <ul class="rail-camps mono"></ul>
+    </aside>
+
     <main id="top">
+      <div class="pins" id="pins" aria-hidden="true"></div>
       <!-- HERO -->
       <section class="hero">
         <p class="hero-eyebrow mono"><span class="line"><span>(Portfolio — Index <span data-year></span>)</span></span></p>
@@ -108,6 +120,20 @@
         </div>
       </section>
     </main>
+
+    <!-- expedition: full-screen project takeover -->
+    <div class="exp" id="expedition" role="dialog" aria-modal="true" aria-labelledby="exp-title" hidden>
+      <button class="exp-close mono" type="button" data-exp-close data-cursor="Close">Close ✕</button>
+      <div class="exp-media"><canvas></canvas></div>
+      <div class="exp-body">
+        <p class="exp-meta mono"><span data-exp-idx></span> · <span data-exp-status></span> · <span data-exp-year></span></p>
+        <h2 class="exp-title" id="exp-title" data-exp-title></h2>
+        <p class="exp-desc" data-exp-desc></p>
+        <ul class="exp-tags mono" data-exp-tags></ul>
+        <div class="exp-links" data-exp-links></div>
+      </div>
+      <p class="exp-nav mono"><button type="button" data-exp-prev>← Prev</button><button type="button" data-exp-next>Next →</button></p>
+    </div>
 
     <footer class="footer mono">
       <span>© <span data-year></span> <span data-bind="name"></span></span>
