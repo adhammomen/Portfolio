@@ -280,6 +280,7 @@
   }
   function openSheet(i) {
     fillSheet(i); sheet.hidden = false; sheetOpen = true;
+    stages.forEach((s) => s.impulse(innerWidth >= 900 ? -1.2 : 0, innerWidth >= 900 ? 0 : -1.6));
     if (lenis) lenis.stop();
     if (hasGsap && !reduce) {
       gsap.fromTo(".sheet-scrim", { opacity: 0 }, { opacity: 1, duration: 0.5 });
@@ -303,9 +304,41 @@
 
   fontsReady.then(buildStages);
 
+  // the manifesto gains weight: once read, its words drop into the stage below and pile up with the pills
+  const manWords = $$(".w", man);
+  let fallen = false, fallenItems = [];
+  function collapseManifesto() {
+    if (fallen || !capsStage) return; fallen = true;
+    const stageEl = capsStage.items[0] ? capsStage.items[0].el.parentElement : $('[data-stage="caps"]');
+    const sr = stageEl.getBoundingClientRect();
+    const fs = getComputedStyle(man).fontSize;
+    manWords.forEach((w, i) => {
+      const r = w.getBoundingClientRect();
+      const span = document.createElement("span");
+      span.className = "word"; span.textContent = w.textContent; span.style.fontSize = fs;
+      stageEl.append(span);
+      const item = capsStage.add(span, { x: r.left - sr.left + r.width / 2, y: Math.min(-40, r.top - sr.top + r.height / 2), angle: 0, mass: 1.5 + w.textContent.length * 0.5 });
+      Matter.Body.setVelocity(item.body, { x: 0, y: 2 + i * 0.05 });
+      fallenItems.push(item);
+      w.style.visibility = "hidden";
+    });
+    capsStage.start();
+    hud("The words gained weight");
+  }
+  function restoreManifesto() {
+    if (!fallen) return; fallen = false;
+    fallenItems.forEach((it) => { Matter.Composite.remove(capsStage.engine.world, it.body); it.el.remove(); const i = capsStage.items.indexOf(it); if (i > -1) capsStage.items.splice(i, 1); });
+    fallenItems = [];
+    manWords.forEach((w) => (w.style.visibility = ""));
+  }
+
   // ------------------------------------------------------------------ choreography
   const loader = $(".loader");
-  if (!hasGsap || reduce) { loader.remove(); $$(".w").forEach((w) => (w.style.opacity = 1)); return; }
+  if (!hasGsap || reduce) {
+    loader.remove(); $$(".w").forEach((w) => (w.style.opacity = 1));
+    if (!reduce) new IntersectionObserver(([e]) => (e.isIntersecting ? collapseManifesto() : restoreManifesto()), { rootMargin: "0px 0px -25% 0px" }).observe($(".stage-caps"));
+    return;
+  }
   root.classList.add("anim");
   gsap.registerPlugin(ScrollTrigger);
   if (lenis) { lenis.on("scroll", ScrollTrigger.update); gsap.ticker.add((t) => lenis.raf(t * 1000)); gsap.ticker.lagSmoothing(0); }
@@ -317,6 +350,7 @@
     .add(() => loader.remove());
 
   gsap.fromTo(".manifesto .w", { opacity: 0.15 }, { opacity: 1, stagger: 0.06, ease: "none", scrollTrigger: { trigger: ".manifesto", start: "top 80%", end: "bottom 55%", scrub: true } });
+  ScrollTrigger.create({ trigger: ".stage-caps", start: "top 75%", onEnter: collapseManifesto, onLeaveBack: restoreManifesto });
   $$(".label, .plate, .contact-row").forEach((el) => gsap.from(el, { y: 36, opacity: 0, duration: 1, ease: "expo.out", scrollTrigger: { trigger: el, start: "top 90%" } }));
   addEventListener("load", () => ScrollTrigger.refresh());
   if (document.fonts) document.fonts.ready.then(() => ScrollTrigger.refresh());

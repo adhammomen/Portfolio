@@ -192,7 +192,7 @@
       start, stop, scatter, gravity, impulse, render, probeTo, assemble,
       onCollide: (fn) => listeners.collide.push(fn),
       get size() { return { w, h }; },
-      items,
+      items, engine,
     };
   }
 

@@ -91,6 +91,7 @@ html:not(.anim) .loader { display: none; }
 }
 .pill.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
 .pill.ink { background: var(--ink); color: var(--paper); }
+.word { font: 400 1em/1.05 var(--display); letter-spacing: -0.025em; color: var(--ink); padding: 0 .04em; white-space: nowrap; font-variation-settings: "wdth" 90, "opsz" 96; }
 
 /* ---------------------------------------------------------------- work */
 .work { padding: 10vh var(--pad) 6vh; }
