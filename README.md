@@ -1,22 +1,21 @@
-# Portfolio — "Weight"
+# Portfolio — "Host"
 
-A portfolio where everything has mass. No frameworks, no build step; everything is self-hosted and deploys to GitHub Pages.
+A portfolio that isn't a museum. When someone opens it, they are not alone: I'm on the page as a second cursor, giving the tour myself. No frameworks, no build step; everything is self-hosted and deploys to GitHub Pages.
 
 ## The idea
 
-- **The name is a pile of rigid bodies.** Drag, throw and topple the letters. Each glyph's mass comes from how much ink it has (an M is heavier than an I), and hovering shows its weight.
-- **Your cursor is a physical object.** Moving through the pile plows letters aside; on phones your finger does the same.
-- **Gravity follows the phone.** Tilt to steer it, shake to scatter. (iOS shows an "Enable tilt" button for the permission prompt.)
-- **Scrolling has inertia.** Scroll fast and every body on the page lurches.
-- **Scatter / Assemble.** Chaos on demand, and the name pulls back into a clean wordmark. First-time visitors see it assemble on its own after the fall.
-- **The pile remembers.** Positions persist in `localStorage`, so you find the mess you left.
-- **Collisions are percussion.** Opt-in synthesized ticks pitched by mass (Web Audio, no files).
-- Capabilities are pills you can shove; the contact section is letters you can knock over; project titles bounce into the detail sheet.
-- High-contrast paper and ink with one accent, automatic dark mode, reduced-motion fallback.
+- **A second cursor, labelled with my name**, arrives, waves and introduces itself in a speech bubble.
+- It **walks ahead** to the next thing worth seeing as the visitor scrolls: underlines the tagline, circles a phrase in the manifesto, writes a handwritten aside in the margin next to each project, clicks the first project open, circles the contact line and says goodbye.
+- Everything it draws is a real pen stroke (SVG paths with a hand jitter, drawn on as the cursor traces them) in my handwriting (Caveat).
+- It has a personality: it **dodges** if the visitor's cursor chases it, **waves and nudges** when they go idle, and **steps aside** if they turn the tour off ("Tour on / off" in the header).
+- On phones the host walks ahead of your thumb and annotates as you scroll; no hover needed.
+- The page itself stays calm — paper, ink, one pen colour, big editorial type — so the presence is the show. Dark mode and reduced-motion respected.
 
 ## Editing content
 
-Everything lives in [`assets/projects.js`](assets/projects.js): name, role, tagline, manifesto, capabilities, links and the project list. Each project has `title`, `status` (`finished` / `in-progress`), `year`, `description`, `tags`, and optional `repo` / `demo`.
+Everything lives in [`assets/projects.js`](assets/projects.js): name, role, tagline, manifesto, capabilities, links, the host's lines (`host.intro`, `host.idle`, `host.dodge`, `host.solo`, `host.contact`) and the project list. Each project has `title`, `status`, `year`, `description`, `tags`, optional `repo` / `demo`, and a `note` — what the host writes next to it.
+
+The tour itself is a list of beats in [`assets/main.js`](assets/main.js) (`beat(key, trigger, start, fn)`); the host's gestures (`moveTo`, `speak`, `circle`, `underline`, `arrow`, `click`, `writeNear`, `wave`) live in [`assets/host.js`](assets/host.js).
 
 ## Running locally
 
@@ -30,4 +29,4 @@ Pushes to `main` deploy via `.github/workflows/pages.yml`. Enable once under **S
 
 ## Credits
 
-[Matter.js](https://brm.io/matter-js/), [GSAP](https://gsap.com) (ScrollTrigger), [Lenis](https://lenis.darkroom.engineering), and the OFL fonts Bricolage Grotesque and JetBrains Mono, vendored in `assets/`.
+[GSAP](https://gsap.com) (ScrollTrigger), [Lenis](https://lenis.darkroom.engineering), and the OFL fonts Bricolage Grotesque, JetBrains Mono and Caveat, vendored in `assets/`.

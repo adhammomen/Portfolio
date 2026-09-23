@@ -4,20 +4,26 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Portfolio</title>
-    <meta name="description" content="Selected work. Everything here has weight." />
-    <meta name="theme-color" content="#f2efe6" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23111'/%3E%3Ccircle cx='16' cy='20' r='7' fill='%23ff4d00'/%3E%3C/svg%3E" />
+    <meta name="description" content="A walkthrough of my work, given by me." />
+    <meta name="theme-color" content="#f4f2ec" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f4f2ec'/%3E%3Cpath d='M9 6l14 11-6 1 4 7-3 1-4-7-4 5z' fill='%231d4ed8'/%3E%3C/svg%3E" />
     <link rel="preload" href="assets/fonts/BricolageGrotesque.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="assets/fonts/Caveat.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="assets/fonts.css" />
     <link rel="stylesheet" href="assets/styles.css" />
   </head>
   <body>
     <a class="skip" href="#work">Skip to work</a>
 
-    <!-- preloader -->
-    <div class="loader" aria-hidden="true"><div class="loader-ball"></div></div>
+    <!-- annotation layer: everything the host draws, in document coordinates -->
+    <svg class="ink" id="ink" aria-hidden="true"></svg>
 
-    <div class="probe" aria-hidden="true"></div>
+    <!-- the host: a second cursor on the page -->
+    <div class="host" id="host" aria-live="polite" aria-label="Adham, your host">
+      <svg class="host-arrow" viewBox="0 0 24 24" width="24" height="24"><path d="M4 3l14.5 11.5-6.3.9 3.9 7.1-2.8 1.4-3.9-7.1-4.9 4.2z" /></svg>
+      <span class="host-tag"><span class="host-dot"></span><span data-host-name></span></span>
+      <span class="host-say" data-host-say hidden></span>
+    </div>
 
     <header class="hud">
       <a href="#top" class="logo" aria-label="Back to top"><span data-initials></span></a>
@@ -25,54 +31,49 @@
         <a href="#about">About</a>
         <a href="#work">Work</a>
         <a href="#contact">Contact</a>
-        <button class="sound" type="button" aria-pressed="false" data-sound><span class="dot"></span><span data-sound-label>Sound</span></button>
+        <button class="tour mono" type="button" data-tour aria-pressed="true"><span class="host-dot"></span><span data-tour-label>Tour on</span></button>
       </nav>
     </header>
 
     <main id="top">
-      <!-- HERO: the name as a pile of physical letters -->
       <section class="hero">
-        <div class="hero-top">
-          <p class="mono"><span class="line"><span>(Portfolio — <span data-year></span>)</span></span></p>
-          <p class="mono hero-role"><span class="line"><span data-bind="role"></span></span></p>
+        <p class="mono hero-meta"><span class="line"><span>(Portfolio — <span data-year></span>) · <span data-presence>Adham is here</span></span></span></p>
+        <h1 class="hero-name">
+          <span class="line"><span data-first></span></span>
+          <span class="line"><span data-last></span></span>
+        </h1>
+        <div class="hero-foot">
+          <p class="hero-tag"><span class="line"><span data-bind="tagline"></span></span></p>
+          <p class="mono muted"><span class="line"><span data-bind="role"></span></span></p>
         </div>
-        <h1 class="hero-tag"><span class="line"><span data-bind="tagline"></span></span></h1>
-        <div class="stage stage-hero" data-stage="hero" aria-label="" role="img"></div>
-        <p class="hint mono"><span class="line"><span><span data-hint>Drag the letters</span> · <button type="button" class="linkish" data-scatter>Scatter</button> · <button type="button" class="linkish" data-assemble>Assemble</button></span></span></p>
-        <button class="tilt mono" type="button" data-tilt hidden>Enable tilt</button>
       </section>
 
-      <!-- ABOUT -->
       <section id="about" class="about">
         <p class="label mono">(01) — About</p>
         <p class="manifesto" data-manifesto></p>
-        <div class="stage stage-caps" data-stage="caps" aria-label="Capabilities" role="list"></div>
+        <ul class="caps mono" data-caps></ul>
       </section>
 
-      <!-- WORK -->
       <section id="work" class="work">
         <p class="label mono">(02) — Selected work · <span data-count></span></p>
         <div class="plates"></div>
       </section>
 
-      <!-- CONTACT -->
       <section id="contact" class="contact">
         <p class="label mono">(03) — Contact</p>
-        <div class="stage stage-cta" data-stage="cta" role="img" aria-label="Say hello"></div>
-        <div class="contact-row">
-          <p class="contact-sub">Let's build something with weight.</p>
-          <a class="cta" data-contact>Get in touch ↗</a>
-        </div>
+        <h2 class="contact-title"><span class="line"><span>Say hello.</span></span></h2>
+        <p class="contact-line"><a class="contact-link" data-contact><span data-contact-text></span></a></p>
+        <p class="muted contact-sub">Or find me on <a href="https://github.com/adhammomen" data-github>GitHub</a>.</p>
       </section>
     </main>
 
-    <!-- project sheet -->
     <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
       <div class="sheet-scrim" data-sheet-close></div>
       <div class="sheet-panel">
         <button class="sheet-close mono" type="button" data-sheet-close>Close ✕</button>
         <p class="mono sheet-meta"><span data-sheet-idx></span> · <span data-sheet-status></span> · <span data-sheet-year></span></p>
         <h2 class="sheet-title" id="sheet-title" data-sheet-title></h2>
+        <p class="hand sheet-note" data-sheet-note></p>
         <p class="sheet-desc" data-sheet-desc></p>
         <ul class="sheet-tags mono" data-sheet-tags></ul>
         <div class="sheet-links" data-sheet-links></div>
@@ -82,17 +83,15 @@
 
     <footer class="footer mono">
       <span>© <span data-year></span> <span data-bind="name"></span></span>
-      <span class="clock"><b data-clock>00:00:00</b> local</span>
-      <a href="https://github.com/adhammomen" data-github>GitHub ↗</a>
+      <span class="muted">Handwriting mine. Cursor mine. Bugs mine.</span>
       <a href="#top">Top ↑</a>
     </footer>
 
-    <script src="assets/vendor/matter.min.js"></script>
     <script src="assets/vendor/gsap.min.js"></script>
     <script src="assets/vendor/ScrollTrigger.min.js"></script>
     <script src="assets/vendor/lenis.min.js"></script>
     <script src="assets/projects.js"></script>
-    <script src="assets/physics.js"></script>
+    <script src="assets/host.js"></script>
     <script src="assets/main.js"></script>
   </body>
 </html>
