@@ -113,7 +113,16 @@
   gsap.registerPlugin(ScrollTrigger);
   if (lenis) { lenis.on("scroll", ScrollTrigger.update); gsap.ticker.add((t) => lenis.raf(t * 1000)); gsap.ticker.lagSmoothing(0); }
 
-  const host = Host({ ...D.host, scroller: scrollPage });
+  const host = Host({ ...D.host, scroller: scrollPage, onStatus: (st) => { $("[data-presence]").textContent = `${first} is here${st ? " · " + st : ""}`; } });
+  const toasts = $("#toasts");
+  function toast(who, text, cls) {
+    const t = document.createElement("div"); t.className = "toast";
+    t.innerHTML = `<span class="avatar ${cls || ""}">${who[0]}</span><span>${who} ${text}</span>`;
+    toasts.append(t); setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 450); }, 2600);
+  }
+  setTimeout(() => toast("you", D.host.joined, "you"), 300);
+  setTimeout(() => toast(first, D.host.joined), 1100);
+  try { console.log(`%c${D.host.console}`, "font: 600 16px 'Caveat', cursive; color: #1d4ed8"); } catch (_) {}
   let tourOn = true;
   const tourBtn = $("[data-tour]");
   const words = $$(".w", man);
@@ -123,6 +132,15 @@
 
   const hour = new Date().getHours();
   const greeting = hour < 5 || hour >= 22 ? D.host.greetings.night : hour < 12 ? D.host.greetings.morning : hour < 18 ? D.host.greetings.afternoon : D.host.greetings.evening;
+  // where the host actually is
+  let hereLine = "";
+  if (D.host.timezone) {
+    try {
+      const t = new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: D.host.timezone }).format(new Date());
+      const h = +new Intl.DateTimeFormat("en", { hour: "numeric", hour12: false, timeZone: D.host.timezone }).format(new Date());
+      hereLine = (h >= 23 || h < 6 ? D.host.lateHere : D.host.timeHere).replace("{time}", t.toLowerCase());
+    } catch (_) {}
+  }
 
   // beats: each fires once, when its section comes into view, unless the host is parked
   const done = new Set();
@@ -153,6 +171,7 @@
     } else {
       await host.speak(D.host.intro[0], 1100);
       if (greeting) await host.speak(greeting, 900);
+      if (hereLine) await host.speak(hereLine, 1300);
       await host.speak(D.host.intro[1], 1000);
       const tag = $(".hero-tag");
       await host.underline(tag);
@@ -172,6 +191,23 @@
     await host.wait(300);
     await host.writeNear(capEls[capEls.length - 1], "the stuff I do", innerWidth >= 900 ? "right" : "below");
   });
+
+  // the typo: the host notices its own mistake and fixes it in front of you
+  if (D.typo) {
+    const wrong = words.find((w) => w.textContent.replace(/[^\w]/g, "") === D.typo.wrong);
+    if (wrong) beat("typo", wrong, "top 88%", async () => {
+      await host.moveTo(wrong.getBoundingClientRect().right + 30, wrong.getBoundingClientRect().top + scrollY - 10, 500);
+      await host.wait(400);
+      await host.speak(D.host.typoLines[0], 700);
+      await host.strike(wrong);
+      const r = wrong.getBoundingClientRect();
+      const fs = parseFloat(getComputedStyle(wrong).fontSize);
+      await host.note(D.typo.right, r.left + 4, r.top + scrollY - fs * 0.62, { rotate: -3, size: fs * 0.55 + "px" });
+      wrong.setAttribute("aria-label", D.typo.right); wrong.classList.add("fixed");
+      await host.speak(D.host.typoLines[1], 900);
+      if (D.host.status) { await host.wait(200); await host.speak(D.host.status, 1800); }
+    });
+  }
 
   // work: walk the plates, a margin note + doodle each, open the first one
   D.projects.forEach((p, i) => {
@@ -255,6 +291,7 @@
   const you = $("#you");
   addEventListener("pointermove", (e) => {
     mouse.x = e.clientX; mouse.y = e.clientY + scrollY;
+    host.setAttention(mouse.x, mouse.y);
     if (fine) { you.classList.add("on"); you.style.transform = `translate3d(${e.clientX}px,${e.clientY}px,0)`; }
     if (!fine || host.parked) return;
     if (Math.hypot(mouse.x - host.pos.x, mouse.y - host.pos.y) < 70) host.dodge(mouse.x, mouse.y);
@@ -264,12 +301,40 @@
   function armIdle() {
     clearTimeout(idleT);
     idleT = setTimeout(() => {
-      if (tourOn && !host.busy && !sheetOpen && idleCount < 6) { idleCount++; host.run(async () => { await host.wave(); host.quip(pick(D.host.idle)); if (idleCount === 3) await host.doodle("question", host.pos.x + 40, host.pos.y); }); }
+      if (tourOn && !host.busy && !sheetOpen && idleCount < 6) {
+        idleCount++;
+        host.run(async () => {
+          await host.wave();
+          const line = idleCount === 2 && fine ? D.host.typeHint : idleCount === 4 ? D.host.penHint : pick(D.host.idle);
+          host.quip(line, 2200);
+          if (idleCount === 3) await host.doodle("question", host.pos.x + 40, host.pos.y);
+        });
+      }
       armIdle();
     }, 9000);
   }
   ["pointermove", "pointerdown", "scroll", "keydown", "touchstart"].forEach((ev) => addEventListener(ev, armIdle, { passive: true }));
   armIdle();
+
+  // away and back: the host notices, and doodles while you're gone
+  let hiddenAt = 0;
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { hiddenAt = performance.now(); return; }
+    const away = performance.now() - hiddenAt;
+    if (away < 6000 || !tourOn) return;
+    host.run(async () => {
+      if (away > 15000) await host.doodle("smile", host.pos.x + 46, host.pos.y + 10);
+      await host.speak(pick(D.host.away), 1600);
+    });
+  });
+  // small reactions to what the visitor does with the page
+  const once = new Set();
+  const react = (key, fn) => { if (once.has(key) || !tourOn || host.busy) return; once.add(key); fn(); };
+  document.addEventListener("copy", () => react("copy", () => host.quip(D.host.copied, 2200)));
+  document.addEventListener("contextmenu", () => react("ctx", () => host.quip(D.host.rightClick, 2000)));
+  addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") react("all", () => host.quip(D.host.selectAll, 2000)); });
+  addEventListener("beforeprint", () => react("print", () => host.quip(D.host.printed, 2400)));
+  let rs = 0; addEventListener("resize", () => { clearTimeout(rs); rs = setTimeout(() => react("resize", () => host.quip(D.host.resized, 1600)), 600); });
 
   // ------------------------------------------------------------------ talk to the host
   const chips = $("[data-ask-chips]"), askForm = $("[data-ask-form]"), askInput = $("[data-ask-input]");
@@ -293,7 +358,7 @@
   }
   D.host.asks.forEach((a) => {
     const b = document.createElement("button"); b.type = "button"; b.textContent = a.label;
-    b.addEventListener("click", () => { closeAsk(); host.run(async () => { await host.speak(a.say, 1200); await act(a.action); }); });
+    b.addEventListener("click", () => { closeAsk(); host.run(async () => { await host.speak(a.say, 1200); await act(a.action); }, { priority: true, interrupt: true }); });
     chips.append(b);
   });
   askForm.addEventListener("submit", (e) => {
@@ -304,12 +369,85 @@
     host.run(async () => {
       if (hit) { await host.speak(hit[1], 1600); await act(hit[2]); }
       else { await host.doodle("question", host.pos.x + 40, host.pos.y); await host.speak(pick(D.host.fallback), 2200); }
-    });
+    }, { priority: true, interrupt: true });
   });
+  // cursor chat: on desktop, just start typing — the words appear beside your cursor
+  const youSay = $("[data-you-say]");
+  let draft = "", draftT = 0, typeHinted = false;
+  function sendDraft() {
+    const q = draft.trim().toLowerCase(); draft = ""; youSay.hidden = true; youSay.textContent = "";
+    if (!q) return;
+    const hit = D.host.replies.find(([keys]) => keys.some((k) => q.includes(k)));
+    host.run(async () => {
+      if (hit) { await host.speak(hit[1], 1600); await act(hit[2]); }
+      else { await host.doodle("question", host.pos.x + 40, host.pos.y); await host.speak(pick(D.host.fallback), 2200); }
+    }, { priority: true, interrupt: true });
+  }
+  if (fine) addEventListener("keydown", (e) => {
+    const t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === "Enter") { if (draft) { e.preventDefault(); sendDraft(); } return; }
+    if (e.key === "Escape") { draft = ""; youSay.hidden = true; return; }
+    if (e.key === "Backspace") { draft = draft.slice(0, -1); youSay.textContent = draft; if (!draft) youSay.hidden = true; return; }
+    if (e.key.length !== 1) return;
+    if (e.key === " " && !draft) return;
+    e.preventDefault();
+    draft = (draft + e.key).slice(0, 80);
+    youSay.hidden = false; youSay.textContent = draft; you.classList.add("on");
+    clearTimeout(draftT); draftT = setTimeout(() => { if (draft) sendDraft(); }, 6000);
+  });
+
   // tap the host itself to talk to it
   document.addEventListener("pointerdown", (e) => {
     if (Math.hypot(e.clientX - host.pos.x, e.clientY + scrollY - host.pos.y) < 40 && !host.busy) { openAsk(); host.quip("yeah?"); }
   });
+
+  // the visitor's pen: draw on the page. circle a project and the host opens it.
+  const penBtn = $("[data-pen]");
+  let penOn = false, drawing = null;
+  const inkLayer = $("#ink");
+  penBtn.addEventListener("click", () => {
+    penOn = !penOn;
+    penBtn.setAttribute("aria-pressed", String(penOn));
+    $("[data-pen-label]").textContent = penOn ? "Pen on" : "Pen";
+    root.classList.toggle("pen", penOn); root.classList.toggle("pen-touch", penOn && !fine);
+    if (penOn && lenis && !fine) lenis.stop(); else if (lenis && !fine) lenis.start();
+  });
+  let justDrew = false;
+  document.addEventListener("click", (e) => { if (justDrew && !e.target.closest(".hud, #ask, #sheet")) { e.preventDefault(); e.stopPropagation(); } }, true);
+  document.addEventListener("pointerdown", (e) => {
+    if (!penOn || e.target.closest("a, input, .hud, #ask, #sheet, .guest")) return;
+    e.preventDefault();
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("class", "stroke you-stroke");
+    inkLayer.append(path);
+    drawing = { path, pts: [[e.clientX, e.clientY + scrollY]] };
+    path.setAttribute("d", `M${e.clientX} ${e.clientY + scrollY}`);
+  });
+  document.addEventListener("pointermove", (e) => {
+    if (!drawing) return;
+    drawing.pts.push([e.clientX, e.clientY + scrollY]);
+    drawing.path.setAttribute("d", drawing.path.getAttribute("d") + ` L${e.clientX} ${e.clientY + scrollY}`);
+  });
+  function endDraw() {
+    if (!drawing) return;
+    const { pts } = drawing; drawing = null;
+    justDrew = true; setTimeout(() => (justDrew = false), 300);
+    if (pts.length < 8) return;
+    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    const box = { l: Math.min(...xs), r: Math.max(...xs), t: Math.min(...ys), b: Math.max(...ys) };
+    const diag = Math.hypot(box.r - box.l, box.b - box.t);
+    const closed = Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < diag * 0.35 && diag > 60;
+    const overlap = (el) => { const r = el.getBoundingClientRect(); const R = { l: r.left, r: r.right, t: r.top + scrollY, b: r.bottom + scrollY }; const w = Math.max(0, Math.min(box.r, R.r) - Math.max(box.l, R.l)), h = Math.max(0, Math.min(box.b, R.b) - Math.max(box.t, R.t)); return (w * h) / Math.max(1, (R.r - R.l) * (R.b - R.t)); };
+    let plate = -1, best = 0.5;
+    plateEls.forEach((el, i) => { const o = overlap($(".plate-title", el)); if (o > best) { best = o; plate = i; } });
+    if (closed && plate > -1) { host.run(async () => { await host.speak(pick(D.host.circled), 900); await host.click(plateEls[plate]); }, { priority: true, interrupt: true }); return; }
+    const hostNote = $$(".note:not(.guest-note)").find((n) => overlap(n) > 0.4);
+    if (hostNote) { host.run(async () => { await host.moveTo(box.r + 20, box.t, 400); await host.speak(pick(D.host.scribbled), 1500); }, { priority: true, interrupt: true }); return; }
+    if (Math.random() < 0.5) host.run(async () => { await host.moveTo(box.r + 24, box.b + 10, 500); await host.speak(pick(D.host.drew), 1300); }, { priority: true, interrupt: true });
+  }
+  document.addEventListener("pointerup", endDraw); document.addEventListener("pointercancel", endDraw);
 
   // guest note: the visitor writes on the page in their own hand
   guest.addEventListener("submit", (e) => {
@@ -325,7 +463,7 @@
       await host.doodle("heart", nr.right + 22, nr.top + scrollY + nr.height / 2);
       await host.speak(pick(D.host.thanks), 1800);
       const notes = [...(memory.notes || []), text].slice(-5); remember({ notes });
-    });
+    }, { priority: true, interrupt: true });
   });
   // notes from earlier visits come back
   if (memory.notes && memory.notes.length) {

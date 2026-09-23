@@ -7,7 +7,9 @@ window.PORTFOLIO = {
   role: "Developer & Builder",
   tagline: "I build the systems underneath, then the surface people touch.",
   manifesto:
-    "Most portfolios are a museum: quiet rooms, things behind glass. I'd rather walk you through the workshop myself. Everything here runs on a server I built and keep alive, and every project started as a problem I couldn't leave alone.",
+    "Most portfolios are a museum: quiet rooms, things behind glass. I'd rather walk you through the workshop myself. Everything here runs on a server I built and keep alive, and every project started as a problm I couldn't leave alone.",
+  // a typo the host notices and fixes in front of the visitor. leave it in.
+  typo: { wrong: "problm", right: "problem" },
   capabilities: [
     { name: "Full-stack", note: "front to back, no handoffs." },
     { name: "Systems & infrastructure", note: "the part nobody sees until it breaks." },
@@ -21,7 +23,26 @@ window.PORTFOLIO = {
     email: "", // add an address: the host circles it for the visitor at the end
   },
   host: {
+    timezone: "", // e.g. "Africa/Cairo" — with this set, the host knows what time it is where you are
+    status: "right now I'm mostly on Ordium.", // what you're up to. the host mentions it once.
+    voicePitch: 1, // 0.8 lower, 1.2 higher
     intro: ["hey — I'm Adham.", "let me show you around."],
+    lateHere: "it's {time} here. I'll keep it short.",
+    timeHere: "it's {time} where I am.",
+    joined: "joined",
+    away: ["oh hey, you're back.", "back? I got bored.", "there you are."],
+    typoLines: ["wait.", "sorry.", "nobody saw that."],
+    penHint: "you have a pen too — top right.",
+    typeHint: "you can just start typing, by the way.",
+    circled: ["that one? sure.", "ok, opening it.", "good pick."],
+    scribbled: ["hey, I wrote that.", "rude.", "ok, fair."],
+    drew: ["nice.", "an artist.", "I'll allow it.", "what is that?"],
+    copied: "copied. tell them I said hi.",
+    rightClick: "what are you looking for?",
+    selectAll: "take it all, it's fine.",
+    printed: "you're printing this? ok.",
+    resized: "nice window.",
+    console: "I see you. — Adham",
     returning: ["welcome back.", "want the tour again, or just look around?"],
     greetings: { night: "late night, huh? same.", morning: "morning.", afternoon: "afternoon.", evening: "evening." },
     idle: ["still there?", "scroll a bit, there's more.", "take your time.", "I'll wait.", "no rush."],

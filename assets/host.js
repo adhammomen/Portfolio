@@ -13,6 +13,9 @@
     const sizeInk = () => { ink.setAttribute("width", document.documentElement.scrollWidth); ink.setAttribute("height", document.documentElement.scrollHeight); ink.style.height = document.documentElement.scrollHeight + "px"; };
     sizeInk(); addEventListener("resize", sizeInk);
     let pen = null; // pen-scratch sound, opt-in
+    // interruption: when the visitor acts, whatever the host is doing stops at once
+    let aborting = false; const waiters = new Set();
+    function abortAll() { aborting = true; waiters.forEach((fn) => fn()); waiters.clear(); if (activeTween) { activeTween.kill(); activeTween = null; } if (activeResolve) { const r = activeResolve; activeResolve = null; r(); } hush(); }
 
     function setStatus(s) { if (status) status.textContent = s || ""; el.dataset.status = s || ""; opts.onStatus && opts.onStatus(s); }
 
@@ -35,14 +38,19 @@
     addEventListener("scroll", () => { lastX = pos.x; lastY = pos.y; el.style.transform = `translate3d(${pos.x}px,${pos.y - scrollY}px,0)`; }, { passive: true });
 
     // --- movement: eased, slightly curved, with a tiny hand tremor
+    let activeTween = null, activeResolve = null;
     function moveTo(x, y, ms) {
+      if (aborting) return Promise.resolve();
+      if (activeTween) { activeTween.kill(); activeTween = null; }
+      if (activeResolve) { const r = activeResolve; activeResolve = null; r(); } // the move we cut short still settles
       const d = Math.hypot(x - pos.x, y - pos.y);
       const dur = ms != null ? ms / 1000 : clamp(d / 900, 0.35, 1.4);
       const cx = (pos.x + x) / 2 + rnd(-d * 0.15, d * 0.15), cy = (pos.y + y) / 2 + rnd(-d * 0.1, d * 0.1);
       const from = { x: pos.x, y: pos.y };
       const o = { t: 0 };
       return new Promise((res) => {
-        gsap.to(o, {
+        activeResolve = res;
+        activeTween = gsap.to(o, {
           t: 1, duration: dur, ease: "power2.inOut",
           onUpdate() {
             const t = o.t, u = 1 - t;
@@ -50,24 +58,39 @@
             pos.y = u * u * from.y + 2 * u * t * cy + t * t * y;
             render();
           },
-          onComplete: res,
+          onComplete: () => { activeTween = null; activeResolve = null; res(); },
         });
       });
     }
-    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const wait = (ms) => aborting ? Promise.resolve() : new Promise((r) => { const id = setTimeout(() => { waiters.delete(done); r(); }, ms); const done = () => { clearTimeout(id); r(); }; waiters.add(done); });
 
     // --- speech, with a "typing…" beat before the words
     function speak(text, hold = 2200, { think = true } = {}) {
+      if (aborting) return Promise.resolve();
       clearTimeout(sayT);
       say.hidden = false;
       return new Promise(async (res) => {
+        const bail = () => { say.hidden = true; res(); }; waiters.add(bail);
         if (think) { say.textContent = ""; say.classList.add("thinking"); setStatus("typing…"); await wait(clamp(text.length * 12, 250, 700)); say.classList.remove("thinking"); }
         setStatus("");
-        let i = 0;
-        (function type() {
-          say.textContent = text.slice(0, ++i);
-          if (i < text.length) setTimeout(type, 24 + Math.random() * 28);
-          else { sayT = setTimeout(() => { say.hidden = true; res(); }, hold); }
+        // plan the keystrokes: sometimes a wrong letter, a pause, then backspace
+        const ops = [];
+        const typoAt = text.length > 8 && Math.random() < 0.3 ? 3 + Math.floor(Math.random() * (text.length - 6)) : -1;
+        for (let i = 0; i < text.length; i++) {
+          if (i === typoAt) {
+            const wrong = "qwertyuiopasdfghjklzxcvbnm"[(Math.random() * 26) | 0];
+            ops.push({ ch: wrong, dt: 30 }, { ch: text[i + 1] || "", dt: 220 }, { back: 2, dt: 90 }, { back: 0, dt: 160 });
+          }
+          ops.push({ ch: text[i], dt: 24 + Math.random() * 28 });
+        }
+        let shown = "", k = 0;
+        (function step() {
+          if (aborting) return;
+          const op = ops[k++];
+          if (!op) { sayT = setTimeout(() => { waiters.delete(bail); say.hidden = true; res(); }, hold); return; }
+          if (op.back) shown = shown.slice(0, -op.back); else if (op.ch) { shown += op.ch; blip(op.ch); }
+          say.textContent = shown;
+          setTimeout(step, op.dt);
         })();
       });
     }
@@ -76,6 +99,7 @@
 
     // --- hand-drawn strokes
     function stroke(d, { width = 2.2, ms = 700 } = {}) {
+      if (aborting) return null;
       const p = document.createElementNS(NS, "path");
       p.setAttribute("d", d);
       p.setAttribute("class", "stroke");
@@ -115,6 +139,7 @@
       question(x, y, s = 16) { return `M${x - s * 0.5} ${y - s * 0.6} Q${x} ${y - s * 1.4} ${x + s * 0.5} ${y - s * 0.6} Q${x + s * 0.5} ${y} ${x} ${y + s * 0.1} L${x} ${y + s * 0.4} M${x} ${y + s * 0.8} l0 3`; },
     };
     async function doodle(kind, x, y, size) {
+      if (aborting) return;
       const d = DOODLE[kind](x, y, size);
       await moveTo(x, y - 20, 260);
       stroke(d, { ms: 420 });
@@ -124,6 +149,7 @@
     // handwritten note placed in the document, kept inside the page
     function note(text, x, y, { rotate = rnd(-4, 3), size, cls = "" } = {}) {
       const n = document.createElement("span");
+      if (aborting) return Promise.resolve(n);
       n.className = "hand note " + cls;
       n.style.left = x + "px"; n.style.top = y + "px"; n.style.transform = `rotate(${rotate}deg)`;
       if (size) n.style.fontSize = size;
@@ -137,6 +163,7 @@
       let i = 0;
       return new Promise((res) => {
         (function type() {
+          if (aborting) { n.remove(); setStatus(""); res(n); return; }
           n.textContent = text.slice(0, ++i);
           scratch(40);
           if (i < text.length) setTimeout(type, 34 + Math.random() * 40); else { setStatus(""); res(n); }
@@ -166,6 +193,7 @@
       stroke(path, { ms: 550 }); await traceAlong(path, 550);
     }
     async function click(target) {
+      if (aborting) return;
       const r = rectOf(target);
       await moveTo(r.cx + rnd(-r.w * 0.2, r.w * 0.2), r.cy + rnd(-r.h * 0.2, r.h * 0.2));
       el.classList.add("is-click"); await wait(140); el.classList.remove("is-click");
@@ -180,6 +208,12 @@
       await moveTo(x, y);
       return note(text, x, y);
     }
+    async function strike(target) {
+      const r = rectOf(target);
+      await moveTo(r.x - 8, r.cy + 2, 300);
+      const d = `M${r.x - 4} ${jitter(r.cy + 2, 2)} Q${r.cx} ${r.cy + rnd(-4, 4)} ${r.x + r.w + 4} ${jitter(r.cy - 1, 2)}`;
+      stroke(d, { ms: 380, width: 2.6 }); await traceAlong(d, 380);
+    }
     async function pointAt(target) {
       const r = rectOf(target);
       await moveTo(r.x + r.w + 26, r.cy);
@@ -187,9 +221,12 @@
       stroke(d, { ms: 450 }); await traceAlong(d, 450);
     }
     function traceAlong(d, ms) {
+      if (aborting) return Promise.resolve();
       const tmp = document.createElementNS(NS, "path"); tmp.setAttribute("d", d);
       const len = tmp.getTotalLength(); const o = { t: 0 };
-      return new Promise((res) => gsap.to(o, { t: 1, duration: ms / 1000, ease: "power1.inOut", onUpdate() { const p = tmp.getPointAtLength(o.t * len); pos.x = p.x + 6; pos.y = p.y + 4; render(); }, onComplete: res }));
+      if (activeTween) { activeTween.kill(); activeTween = null; }
+      if (activeResolve) { const r = activeResolve; activeResolve = null; r(); }
+      return new Promise((res) => { activeResolve = res; activeTween = gsap.to(o, { t: 1, duration: ms / 1000, ease: "power1.inOut", onUpdate() { const p = tmp.getPointAtLength(o.t * len); pos.x = p.x + 6; pos.y = p.y + 4; render(); }, onComplete: () => { activeTween = null; activeResolve = null; res(); } }); });
     }
     async function wave() { for (let i = 0; i < 3; i++) { await moveTo(pos.x + 14, pos.y - 8, 110); await moveTo(pos.x - 14, pos.y + 8, 110); } }
     async function nod() { for (let i = 0; i < 2; i++) { await moveTo(pos.x, pos.y + 10, 120); await moveTo(pos.x, pos.y - 10, 120); } }
@@ -219,6 +256,16 @@
       ac.resume();
       return pen;
     }
+    // a tiny voice: one pitched blip per letter, like a creature in a video game
+    function blip(ch) {
+      if (!pen || !pen.on || !/[a-z0-9]/i.test(ch)) return;
+      const { ac } = pen, t = ac.currentTime;
+      const o = ac.createOscillator(), g = ac.createGain();
+      const semis = (ch.toLowerCase().charCodeAt(0) * 7) % 12;
+      o.type = "triangle"; o.frequency.value = 330 * Math.pow(2, semis / 12) * (opts.voicePitch || 1);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.09, t + 0.008); g.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+      o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.08);
+    }
     function scratch(ms) {
       if (!pen || !pen.on) return;
       const { ac, buf } = pen, t = ac.currentTime;
@@ -228,17 +275,51 @@
       s.connect(f).connect(g).connect(ac.destination); s.start(t); s.stop(t + Math.min(0.5, ms / 1000) + 0.05);
     }
 
-    // beats queue up and run one at a time
-    let chain = Promise.resolve(), pending = 0;
-    function run(fn) {
-      pending++; busy = true;
-      chain = chain.then(() => fn()).catch((e) => console.warn("host beat failed", e)).then(() => { if (--pending === 0) { busy = false; setStatus(""); } });
-      return chain;
+    // --- body language: never quite still. drifts, glances at what you look at, re-reads its notes
+    let attention = null; // {x, y} in document coords, where the visitor is looking
+    function setAttention(x, y) { attention = { x, y }; }
+    async function fidget() {
+      if (busy || parked || document.hidden) return;
+      const r = Math.random();
+      if (r < 0.45) {
+        await moveTo(pos.x + rnd(-18, 18), pos.y + rnd(-12, 12), 500);
+      } else if (r < 0.8 && attention && Math.hypot(attention.x - pos.x, attention.y - pos.y) > 120) {
+        // glance: lean toward what the visitor is on, then settle back
+        const gx = pos.x + (attention.x - pos.x) * 0.35, gy = pos.y + (attention.y - pos.y) * 0.35;
+        const back = { x: pos.x, y: pos.y };
+        await moveTo(gx, gy, 420); await wait(500);
+        if (!busy) await moveTo(back.x + rnd(-8, 8), back.y + rnd(-8, 8), 520);
+      } else {
+        const notes = document.querySelectorAll(".note:not(.guest-note)");
+        if (!notes.length) return;
+        const n = notes[(Math.random() * notes.length) | 0].getBoundingClientRect();
+        if (n.top < 0 || n.bottom > innerHeight) return;
+        await moveTo(n.left + n.width * rnd(0.2, 0.9), n.top + scrollY + n.height + 6, 600);
+      }
+    }
+    (function fidgetLoop() { setTimeout(async () => { try { await fidget(); } catch (_) {} fidgetLoop(); }, 1800 + Math.random() * 3200); })();
+
+    // beats queue up and run one at a time; what the visitor asks for goes to the front
+    const queue = []; let running = false;
+    function pump() {
+      if (running || !queue.length) return;
+      running = true;
+      const fn = queue.shift();
+      Promise.resolve().then(fn).catch((e) => console.warn("host beat failed", e)).then(() => {
+        running = false; aborting = false;
+        if (!queue.length) { busy = false; setStatus(""); }
+        pump();
+      });
+    }
+    function run(fn, { priority = false, interrupt = false } = {}) {
+      if (priority) queue.unshift(fn); else queue.push(fn);
+      if (interrupt && running) abortAll();
+      busy = true; pump();
     }
 
     render();
     return {
-      pos, el, moveTo, speak, quip, hush, circle, underline, arrow, pointAt, click, writeNear, note, stroke, doodle, wave, nod, dodge, park, scrollTo, run, wait, setStatus,
+      pos, el, moveTo, speak, quip, hush, circle, underline, arrow, pointAt, strike, click, writeNear, note, stroke, doodle, wave, nod, dodge, park, scrollTo, run, wait, setStatus, setAttention, blip,
       enableSound, get sound() { return !!(pen && pen.on); }, set sound(v) { if (v) enableSound(); if (pen) pen.on = !!v; },
       get busy() { return busy; }, get parked() { return parked; }, set parked(v) { parked = v; },
       keepOnScreen() {

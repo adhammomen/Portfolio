@@ -167,3 +167,26 @@ html.host-solo .host { opacity: .55; }
 .note.guest-note { color: var(--ink); }
 .plate.is-watched .plate-title { color: var(--pen); }
 @media (max-width: 899px) { .you { display: none; } .ask-chips button { font-size: 12px; padding: 6px 10px; } .tour[data-sound] { display: none; } }
+
+/* ---------------------------------------------------------------- step 6: a person at the other end */
+.you-say { position: absolute; left: 14px; top: 40px; width: max-content; max-width: min(60vw, 380px); background: var(--ink); color: var(--paper); font: 600 20px/1.15 var(--hand); padding: 6px 12px; border-radius: 12px; white-space: normal; }
+.you-say[hidden] { display: none; }
+.you-say::after { content: "|"; animation: caret 1s steps(2) infinite; margin-left: 2px; opacity: .7; }
+@keyframes caret { 50% { opacity: 0; } }
+.toasts { position: fixed; top: calc(var(--pad) + 56px); left: 50%; transform: translateX(-50%); z-index: 75; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.toast { display: inline-flex; align-items: center; gap: 8px; background: var(--paper); border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0,0,0,.1); border-radius: 999px; padding: 6px 12px 6px 8px; font: 500 13px var(--display); animation: toast-in .5s var(--ease) both; }
+.toast .avatar { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font: 600 9px var(--mono); color: #fff; background: var(--pen); }
+.toast .avatar.you { background: var(--ink); }
+.toast.out { animation: toast-out .4s ease-in forwards; }
+@keyframes toast-in { from { transform: translateY(-12px); opacity: 0; } }
+@keyframes toast-out { to { transform: translateY(-8px); opacity: 0; } }
+.you-stroke { stroke: var(--ink); stroke-width: 2.4; opacity: .85; }
+html.pen, html.pen * { cursor: crosshair !important; }
+html.pen .you-tag::after { content: " · pen"; opacity: .7; }
+html.pen-touch { touch-action: none; }
+.hint-key { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 40; color: var(--muted); pointer-events: none; opacity: 0; transition: opacity .5s; }
+.hint-key.on { opacity: 1; }
+.hint-key kbd { font: inherit; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; color: var(--ink); }
+.w.fixed { text-decoration: none; }
+.correction { font-size: .55em; position: absolute; }
+@media (max-width: 899px) { .hint-key { display: none; } .tour[data-pen] span { display: inline; } }
