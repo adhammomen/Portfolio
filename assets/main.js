@@ -293,7 +293,7 @@
     const done = () => { sheet.hidden = true; if (lenis) lenis.start(); plateEls[sheetIdx] && plateEls[sheetIdx].focus(); };
     if (hasGsap && !reduce) {
       gsap.to(".sheet-scrim", { opacity: 0, duration: 0.4 });
-      gsap.to(".sheet-panel", innerWidth >= 900 ? { xPercent: 100 } : { yPercent: 100 }, { duration: 0.6, ease: "expo.in", onComplete: done });
+      gsap.to(".sheet-panel", { ...(innerWidth >= 900 ? { xPercent: 100 } : { yPercent: 100 }), duration: 0.6, ease: "expo.in", onComplete: done });
     } else done();
   }
   plateEls.forEach((el, i) => el.addEventListener("click", () => openSheet(i)));

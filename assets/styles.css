@@ -11,15 +11,10 @@
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #121211; --paper-2: #1b1b19; --ink: #f2efe6; --muted: #9a978e; --line: rgba(242, 239, 230, 0.16);
-  }
-}
 
 * { box-sizing: border-box; }
 html, body { overflow-x: clip; }
-html { background: var(--paper); color: var(--ink); -webkit-font-smoothing: antialiased; }
+html { background: var(--paper); color: var(--ink); color-scheme: light; -webkit-font-smoothing: antialiased; }
 html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth { scroll-behavior: auto !important; }
 body { margin: 0; background: var(--paper); font: 400 17px/1.5 var(--display); }
