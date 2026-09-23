@@ -1,23 +1,17 @@
 // All site content lives here. Edit freely — the site re-renders from this file.
 // project.status: "finished" | "in-progress"
-// project.seed: any number — changes the generated terrain art on the card.
 window.PORTFOLIO = {
   name: "Adham Momen",
   role: "Developer & Builder",
-  tagline: "I map ideas into software — from the server rack to the last pixel.",
+  tagline: "I give ideas weight.",
   manifesto:
-    "Every product starts as blank terrain. I survey it, carve the paths, and build systems that hold their shape under load — then obsess over the surface people actually touch.",
+    "An idea is weightless until it ships. I build the systems underneath — servers, data, the parts that have to hold — and then the surface people touch, until the whole thing feels inevitable.",
   capabilities: [
-    "Full-stack engineering",
-    "Systems & infrastructure",
-    "Self-hosted servers",
-    "Product design",
-    "Interfaces & motion",
-    "Automation",
+    "Full-stack", "Systems", "Infrastructure", "Self-hosted", "Product", "Interfaces", "Motion", "Automation", "APIs", "Design",
   ],
   links: {
     github: "https://github.com/adhammomen",
-    email: "", // add an address to turn on the "Say hello" mail link
+    email: "", // add an address to turn on the mail link
   },
   projects: [
     {
@@ -28,7 +22,6 @@ window.PORTFOLIO = {
       tags: ["Platform", "Server"],
       repo: "",
       demo: "",
-      seed: 7,
     },
     {
       title: "Kingsmaker",
@@ -38,18 +31,16 @@ window.PORTFOLIO = {
       tags: ["Product"],
       repo: "",
       demo: "",
-      seed: 23,
     },
     {
-      title: "Topography",
+      title: "Weight",
       status: "finished",
       year: "2026",
       description:
-        "This portfolio. A live WebGL contour field, variable-font typography and a scroll-driven journey — no frameworks, no build step.",
-      tags: ["WebGL", "GLSL", "GSAP", "Creative dev"],
+        "This site. A portfolio where every element has mass: rigid-body letters you can throw, gravity that follows your phone, and typography that does the rest. No frameworks, no build step.",
+      tags: ["Matter.js", "GSAP", "Typography", "Creative dev"],
       repo: "https://github.com/adhammomen/Portfolio",
       demo: "",
-      seed: 91,
     },
   ],
 };

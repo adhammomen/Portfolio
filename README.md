@@ -1,19 +1,22 @@
-# Portfolio — "Topography"
+# Portfolio — "Weight"
 
-A portfolio built as an expedition across a living map. No frameworks, no build step; everything is self-hosted and deploys to GitHub Pages.
+A portfolio where everything has mass. No frameworks, no build step; everything is self-hosted and deploys to GitHub Pages.
 
-## What's in it
+## The idea
 
-- **Live terrain** — a WebGL2 contour-map shader that fills the page. The cursor (or your finger / phone tilt) raises a peak; scrolling travels across the map; tapping anywhere sends a survey ripple through the contours; the palette crosses a "snow line" as you near the summit.
-- **Generative ridgelines** — every project card draws its own seeded ridgeline art on a canvas; it reacts to hover/touch.
-- **Typography** — Bricolage Grotesque (variable): the hero letters swell in weight and width toward the cursor; titles morph on hover.
-- **Scroll choreography** — Lenis smooth scroll + GSAP ScrollTrigger: pinned horizontal "expedition" through the work on wide screens, stacked with reveals on phones; a manifesto that lights up as you read; a velocity-driven marquee.
-- **Instruments** — coordinates + elevation HUD, preloader, custom cursor (pointer devices), magnetic links, synthesized ambient sound (Web Audio, no files) whose pitch follows elevation and whose wind follows scroll speed.
-- **Mobile parity** — touch drives the terrain and readouts; the gyroscope can drive the peak (iOS shows an "Enable tilt" button); every effect has a reduced-motion and no-WebGL fallback.
+- **The name is a pile of rigid bodies.** Drag, throw and topple the letters. Each glyph's mass comes from how much ink it has (an M is heavier than an I), and hovering shows its weight.
+- **Your cursor is a physical object.** Moving through the pile plows letters aside; on phones your finger does the same.
+- **Gravity follows the phone.** Tilt to steer it, shake to scatter. (iOS shows an "Enable tilt" button for the permission prompt.)
+- **Scrolling has inertia.** Scroll fast and every body on the page lurches.
+- **Scatter / Assemble.** Chaos on demand, and the name pulls back into a clean wordmark. First-time visitors see it assemble on its own after the fall.
+- **The pile remembers.** Positions persist in `localStorage`, so you find the mess you left.
+- **Collisions are percussion.** Opt-in synthesized ticks pitched by mass (Web Audio, no files).
+- Capabilities are pills you can shove; the contact section is letters you can knock over; project titles bounce into the detail sheet.
+- High-contrast paper and ink with one accent, automatic dark mode, reduced-motion fallback.
 
 ## Editing content
 
-Everything lives in [`assets/projects.js`](assets/projects.js): name, role, tagline, manifesto, capabilities, links, and the project list. Each project has `title`, `status` (`finished` / `in-progress`), `year`, `description`, `tags`, optional `repo` / `demo`, and a `seed` that changes its ridgeline art.
+Everything lives in [`assets/projects.js`](assets/projects.js): name, role, tagline, manifesto, capabilities, links and the project list. Each project has `title`, `status` (`finished` / `in-progress`), `year`, `description`, `tags`, and optional `repo` / `demo`.
 
 ## Running locally
 
@@ -27,4 +30,4 @@ Pushes to `main` deploy via `.github/workflows/pages.yml`. Enable once under **S
 
 ## Credits
 
-[GSAP](https://gsap.com) (ScrollTrigger), [Lenis](https://lenis.darkroom.engineering), and the OFL fonts Bricolage Grotesque and JetBrains Mono, vendored in `assets/`.
+[Matter.js](https://brm.io/matter-js/), [GSAP](https://gsap.com) (ScrollTrigger), [Lenis](https://lenis.darkroom.engineering), and the OFL fonts Bricolage Grotesque and JetBrains Mono, vendored in `assets/`.
