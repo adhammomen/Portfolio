@@ -1,39 +1,55 @@
-// Edit this file to update the portfolio. Each entry renders as a project card.
-// status: "finished" | "in-progress"
+// All site content lives here. Edit freely — the site re-renders from this file.
+// project.status: "finished" | "in-progress"
+// project.seed: any number — changes the generated terrain art on the card.
 window.PORTFOLIO = {
   name: "Adham Momen",
-  tagline: "Developer building products end to end.",
-  about:
-    "I design, build and ship software — from backend services running on my own server to the interfaces people use every day.",
+  role: "Developer & Builder",
+  tagline: "I map ideas into software — from the server rack to the last pixel.",
+  manifesto:
+    "Every product starts as blank terrain. I survey it, carve the paths, and build systems that hold their shape under load — then obsess over the surface people actually touch.",
+  capabilities: [
+    "Full-stack engineering",
+    "Systems & infrastructure",
+    "Self-hosted servers",
+    "Product design",
+    "Interfaces & motion",
+    "Automation",
+  ],
   links: {
     github: "https://github.com/adhammomen",
-    email: "",
+    email: "", // add an address to turn on the "Say hello" mail link
   },
   projects: [
     {
       title: "Ordium",
       status: "in-progress",
+      year: "2026",
       description: "Description coming soon.",
-      tags: [],
+      tags: ["Platform", "Server"],
       repo: "",
       demo: "",
+      seed: 7,
     },
     {
       title: "Kingsmaker",
       status: "in-progress",
+      year: "2026",
       description: "Description coming soon.",
-      tags: [],
+      tags: ["Product"],
       repo: "",
       demo: "",
+      seed: 23,
     },
     {
-      title: "Portfolio",
+      title: "Topography",
       status: "finished",
+      year: "2026",
       description:
-        "This site: a dependency-free static portfolio deployed to GitHub Pages, driven by a single data file.",
-      tags: ["HTML", "CSS", "JavaScript", "GitHub Pages"],
+        "This portfolio. A live WebGL contour field, variable-font typography and a scroll-driven journey — no frameworks, no build step.",
+      tags: ["WebGL", "GLSL", "GSAP", "Creative dev"],
       repo: "https://github.com/adhammomen/Portfolio",
       demo: "",
+      seed: 91,
     },
   ],
 };
