@@ -21,8 +21,20 @@
     <!-- the host: a second cursor on the page -->
     <div class="host" id="host" aria-live="polite" aria-label="Adham, your host">
       <svg class="host-arrow" viewBox="0 0 24 24" width="24" height="24"><path d="M4 3l14.5 11.5-6.3.9 3.9 7.1-2.8 1.4-3.9-7.1-4.9 4.2z" /></svg>
-      <span class="host-tag"><span class="host-dot"></span><span data-host-name></span></span>
+      <span class="host-tag"><span class="host-dot"></span><span data-host-name></span><span class="host-status" data-host-status></span></span>
       <span class="host-say" data-host-say hidden></span>
+    </div>
+
+    <!-- the visitor's own tag, so it reads as two people on one page -->
+    <div class="you" id="you" aria-hidden="true"><span class="you-tag">you</span></div>
+
+    <!-- ask the host -->
+    <div class="ask" id="ask" hidden>
+      <div class="ask-chips" data-ask-chips></div>
+      <form class="ask-form" data-ask-form>
+        <input class="ask-input hand" type="text" maxlength="60" autocomplete="off" placeholder="say something to Adham…" data-ask-input aria-label="Say something to the host" />
+        <button class="ask-send mono" type="submit">Send</button>
+      </form>
     </div>
 
     <header class="hud">
@@ -31,6 +43,8 @@
         <a href="#about">About</a>
         <a href="#work">Work</a>
         <a href="#contact">Contact</a>
+        <button class="tour mono" type="button" data-ask-open>Ask <span data-host-first></span></button>
+        <button class="tour mono" type="button" data-sound aria-pressed="false" title="Pen sound"><span data-sound-label>Sound</span></button>
         <button class="tour mono" type="button" data-tour aria-pressed="true"><span class="host-dot"></span><span data-tour-label>Tour on</span></button>
       </nav>
     </header>
@@ -64,6 +78,10 @@
         <h2 class="contact-title"><span class="line"><span>Say hello.</span></span></h2>
         <p class="contact-line"><a class="contact-link" data-contact><span data-contact-text></span></a></p>
         <p class="muted contact-sub">Or find me on <a href="https://github.com/adhammomen" data-github>GitHub</a>.</p>
+      <form class="guest" data-guest>
+        <label class="mono muted" for="guest-input">Leave a note on the page</label>
+        <div class="guest-row"><input id="guest-input" class="hand guest-input" type="text" maxlength="80" autocomplete="off" placeholder="write something…" /><button class="tour mono" type="submit">Pin it</button></div>
+      </form>
       </section>
     </main>
 

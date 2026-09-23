@@ -1,23 +1,59 @@
 // All site content lives here. Edit freely — the site re-renders from this file.
+// Everything the host says is here too. Write it the way you'd actually talk.
 // project.status: "finished" | "in-progress"
-// project.note: what the host writes in the margin next to it, in his own handwriting.
+// project.notes: what the host writes next to it, in order — the first on arrival, the next ones if the visitor lingers.
 window.PORTFOLIO = {
   name: "Adham Momen",
   role: "Developer & Builder",
   tagline: "I build the systems underneath, then the surface people touch.",
   manifesto:
     "Most portfolios are a museum: quiet rooms, things behind glass. I'd rather walk you through the workshop myself. Everything here runs on a server I built and keep alive, and every project started as a problem I couldn't leave alone.",
-  capabilities: ["Full-stack", "Systems & infrastructure", "Self-hosted servers", "Product design", "Interfaces & motion", "Automation"],
+  capabilities: [
+    { name: "Full-stack", note: "front to back, no handoffs." },
+    { name: "Systems & infrastructure", note: "the part nobody sees until it breaks." },
+    { name: "Self-hosted servers", note: "this site is on one right now." },
+    { name: "Product design", note: "I decide what to build before how." },
+    { name: "Interfaces & motion", note: "case in point." },
+    { name: "Automation", note: "if I do it twice, it gets a script." },
+  ],
   links: {
     github: "https://github.com/adhammomen",
-    email: "", // add an address: the host types it out for the visitor at the end
+    email: "", // add an address: the host circles it for the visitor at the end
   },
   host: {
     intro: ["hey — I'm Adham.", "let me show you around."],
-    idle: ["still there?", "scroll a bit, there's more.", "take your time.", "I'll wait."],
-    dodge: ["ha, too slow.", "nope.", "you can't catch me."],
+    returning: ["welcome back.", "want the tour again, or just look around?"],
+    greetings: { night: "late night, huh? same.", morning: "morning.", afternoon: "afternoon.", evening: "evening." },
+    idle: ["still there?", "scroll a bit, there's more.", "take your time.", "I'll wait.", "no rush."],
+    dodge: ["ha, too slow.", "nope.", "you can't catch me.", "careful."],
+    skipped: "wait — you skipped the good part.",
+    backUp: "back already?",
+    linger: ["you're really looking at this one.", "good eye.", "yeah, that one matters to me."],
     solo: "ok — I'll stay out of your way. tap me if you want the tour again.",
+    back: "back.",
     contact: "this is where you find me →",
+    bye: "thanks for coming by.",
+    askNote: "leave me a note before you go?",
+    thanks: ["nice.", "that's going on the fridge.", "noted. literally."],
+    // things the visitor can ask, and what the host does
+    asks: [
+      { label: "show me your best work", say: "this one.", action: "best" },
+      { label: "what do you build?", say: "all of this, top to bottom.", action: "about" },
+      { label: "how do I reach you?", say: "right here.", action: "contact" },
+      { label: "who are you?", say: "I'm the guy whose name is on the door.", action: "hero" },
+    ],
+    // free-text replies: [keywords], reply, optional action
+    replies: [
+      [["hi", "hello", "hey", "yo"], "hey.", null],
+      [["ordium"], "ordium is the big one. still building it.", "project:0"],
+      [["kingsmaker", "kings"], "kingsmaker started as a side idea and wouldn't leave me alone.", "project:1"],
+      [["email", "mail", "contact", "reach", "hire", "work with"], "right here.", "contact"],
+      [["server", "host", "infra"], "this page is served from a box I keep alive myself.", "about"],
+      [["who", "you"], "I'm the guy whose name is on the door.", "hero"],
+      [["thank", "thanks", "cool", "nice", "love"], "appreciated.", null],
+      [["bye", "later"], "see you.", null],
+    ],
+    fallback: ["ask me about a project, or how to reach me.", "try 'ordium'.", "I only know a few words. try 'contact'."],
   },
   projects: [
     {
@@ -28,7 +64,9 @@ window.PORTFOLIO = {
       tags: ["Platform", "Server"],
       repo: "",
       demo: "",
-      note: "this one is the big one. still building it.",
+      best: true,
+      notes: ["this one is the big one. still building it.", "it runs on the same server as this page.", "ask me about it — type 'ordium'."],
+      doodle: "bang",
     },
     {
       title: "Kingsmaker",
@@ -38,7 +76,8 @@ window.PORTFOLIO = {
       tags: ["Product"],
       repo: "",
       demo: "",
-      note: "started as a side idea, wouldn't leave me alone.",
+      notes: ["started as a side idea, wouldn't leave me alone.", "more on this soon."],
+      doodle: "star",
     },
     {
       title: "Host",
@@ -49,7 +88,8 @@ window.PORTFOLIO = {
       tags: ["Creative dev", "GSAP", "SVG", "Typography"],
       repo: "https://github.com/adhammomen/Portfolio",
       demo: "",
-      note: "you're looking at it.",
+      notes: ["you're looking at it.", "yes, I wrote the cursor too."],
+      doodle: "check",
     },
   ],
 };
