@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Portfolio</title>
+    <meta name="description" content="Projects and work." />
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <header class="wrap hero">
+      <p class="eyebrow">Portfolio</p>
+      <h1 id="name"></h1>
+      <p id="tagline" class="lead"></p>
+      <nav class="links" id="links"></nav>
+    </header>
+
+    <main class="wrap">
+      <section aria-labelledby="projects-heading">
+        <div class="section-head">
+          <h2 id="projects-heading">Projects</h2>
+          <div class="filters" role="group" aria-label="Filter projects">
+            <button class="filter active" data-filter="all">All</button>
+            <button class="filter" data-filter="finished">Finished</button>
+            <button class="filter" data-filter="in-progress">In progress</button>
+          </div>
+        </div>
+        <div id="projects" class="grid"></div>
+      </section>
+
+      <section aria-labelledby="about-heading" class="about">
+        <h2 id="about-heading">About</h2>
+        <p id="about"></p>
+      </section>
+    </main>
+
+    <footer class="wrap footer">
+      <p>&copy; <span id="year"></span> <span id="footer-name"></span></p>
+    </footer>
+
+    <script src="assets/projects.js"></script>
+    <script src="assets/main.js"></script>
+  </body>
+</html>
