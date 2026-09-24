@@ -98,18 +98,69 @@
     function hush() { clearTimeout(sayT); say.hidden = true; }
 
     // --- hand-drawn strokes
-    function stroke(d, { width = 2.2, ms = 700 } = {}) {
+    function stroke(d, { width = 2.2, ms = 700, into = ink } = {}) {
       if (aborting) return null;
       const p = document.createElementNS(NS, "path");
       p.setAttribute("d", d);
-      p.setAttribute("class", "stroke");
+      p.setAttribute("class", "stroke wet");
       p.style.strokeWidth = width;
-      ink.append(p);
+      into.append(p);
       const len = p.getTotalLength();
       p.style.strokeDasharray = len; p.style.strokeDashoffset = len;
-      gsap.to(p, { strokeDashoffset: 0, duration: ms / 1000, ease: "power1.inOut" });
+      gsap.to(p, { strokeDashoffset: 0, duration: ms / 1000, ease: "power1.inOut", onComplete: () => setTimeout(() => p.classList.remove("wet"), 1400) });
       scratch(ms);
       return p;
+    }
+    // draw on an existing path (a glyph outline, a sketch line) and trace it with the cursor, whatever SVG it lives in
+    function drawPath(pathEl, ms) {
+      if (aborting) return Promise.resolve();
+      const len = pathEl.getTotalLength();
+      pathEl.style.strokeDasharray = len; pathEl.style.strokeDashoffset = len;
+      gsap.to(pathEl, { strokeDashoffset: 0, duration: ms / 1000, ease: "none" });
+      scratch(ms);
+      const o = { t: 0 };
+      if (activeTween) { activeTween.kill(); activeTween = null; }
+      if (activeResolve) { const r = activeResolve; activeResolve = null; r(); }
+      return new Promise((res) => {
+        activeResolve = res;
+        activeTween = gsap.to(o, {
+          t: 1, duration: ms / 1000, ease: "none",
+          onUpdate() {
+            const m = pathEl.getScreenCTM(); if (!m) return;
+            const pt = pathEl.getPointAtLength(o.t * len);
+            const sx = m.a * pt.x + m.c * pt.y + m.e, sy = m.b * pt.x + m.d * pt.y + m.f; // to screen
+            pos.x = sx + 4; pos.y = sy + scrollY + 3; render();
+          },
+          onComplete: () => { activeTween = null; activeResolve = null; res(); },
+        });
+      });
+    }
+    // a napkin sketch: rough boxes with labels, arrows between them, drawn inside an <svg viewBox="0 0 640 360">
+    async function sketch(svg, spec) {
+      if (aborting || !spec) return;
+      const W = 640, H = 360, boxes = [];
+      for (const n of spec.nodes) {
+        const w = Math.max(90, n.label.length * 13 + 40), h = 52;
+        const x = n.x * W - w / 2, y = n.y * H - h / 2;
+        boxes.push({ ...n, x, y, w, h });
+        const d = `M${jitter(x)} ${jitter(y)} L${jitter(x + w)} ${jitter(y)} L${jitter(x + w)} ${jitter(y + h)} L${jitter(x)} ${jitter(y + h)} L${jitter(x)} ${jitter(y - 2)}`;
+        const p = stroke(d, { ms: 420, into: svg, width: 2 }); if (!p) return;
+        await drawPath(p, 420);
+        const t = document.createElementNS(NS, "text"); t.setAttribute("x", x + w / 2); t.setAttribute("y", y + h / 2 + 8); t.setAttribute("text-anchor", "middle"); svg.append(t);
+        for (let i = 1; i <= n.label.length; i++) { if (aborting) return; t.textContent = n.label.slice(0, i); scratch(40); await wait(38); }
+        await wait(120);
+      }
+      for (const [a, b, label] of spec.edges || []) {
+        const A = boxes[a], B = boxes[b]; if (!A || !B) continue;
+        const ax = A.x + A.w / 2, ay = A.y + A.h / 2, bx = B.x + B.w / 2, by = B.y + B.h / 2;
+        const ang = Math.atan2(by - ay, bx - ax);
+        // leave the boxes at their edges
+        const sx = ax + Math.cos(ang) * (Math.abs(Math.cos(ang)) > 0.7 ? A.w / 2 + 6 : A.h / 2 + 6), sy = ay + Math.sin(ang) * (Math.abs(Math.cos(ang)) > 0.7 ? A.w / 2 * Math.abs(Math.tan(ang)) + 6 : A.h / 2 + 6);
+        const ex = bx - Math.cos(ang) * (Math.abs(Math.cos(ang)) > 0.7 ? B.w / 2 + 8 : B.h / 2 + 8), ey = by - Math.sin(ang) * (Math.abs(Math.cos(ang)) > 0.7 ? B.w / 2 * Math.abs(Math.tan(ang)) + 8 : B.h / 2 + 8);
+        const p = stroke(arrowPath(sx, sy, ex, ey), { ms: 380, into: svg, width: 2 }); if (!p) return;
+        await drawPath(p, 380);
+        if (label) { const t = document.createElementNS(NS, "text"); t.setAttribute("x", (sx + ex) / 2); t.setAttribute("y", (sy + ey) / 2 - 10); t.setAttribute("text-anchor", "middle"); t.textContent = label; t.style.fontSize = "18px"; svg.append(t); await wait(150); }
+      }
     }
     const jitter = (v, a = 3) => v + rnd(-a, a);
     function circlePath(cx, cy, rx, ry) {
@@ -254,7 +305,38 @@
       const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       pen = { ac, buf, on: true };
       ac.resume();
+      ambience();
       return pen;
+    }
+    // room tone: filtered noise, barely there
+    function ambience() {
+      if (!pen || pen.room) return;
+      const { ac, buf } = pen;
+      const src = ac.createBufferSource(); src.buffer = buf; src.loop = true;
+      const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 220;
+      const g = ac.createGain(); g.gain.value = 0; g.gain.linearRampToValueAtTime(0.018, ac.currentTime + 2);
+      src.connect(lp).connect(g).connect(ac.destination); src.start();
+      pen.room = g;
+    }
+    // a sheet of paper sliding
+    function paper() {
+      if (!pen || !pen.on) return;
+      const { ac, buf } = pen, t = ac.currentTime;
+      const s = ac.createBufferSource(); s.buffer = buf;
+      const f = ac.createBiquadFilter(); f.type = "bandpass"; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(2600, t + 0.35); f.Q.value = 0.8;
+      const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.12, t + 0.08); g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      s.connect(f).connect(g).connect(ac.destination); s.start(t); s.stop(t + 0.55);
+    }
+    // two soft notes when someone joins
+    function chime() {
+      if (!pen || !pen.on) return;
+      const { ac } = pen, t = ac.currentTime;
+      [523.25, 783.99].forEach((f, i) => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.type = "sine"; o.frequency.value = f;
+        g.gain.setValueAtTime(0, t + i * 0.12); g.gain.linearRampToValueAtTime(0.08, t + i * 0.12 + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.12 + 0.7);
+        o.connect(g).connect(ac.destination); o.start(t + i * 0.12); o.stop(t + i * 0.12 + 0.8);
+      });
     }
     // a tiny voice: one pitched blip per letter, like a creature in a video game
     function blip(ch) {
@@ -320,7 +402,8 @@
     render();
     return {
       pos, el, moveTo, speak, quip, hush, circle, underline, arrow, pointAt, strike, click, writeNear, note, stroke, doodle, wave, nod, dodge, park, scrollTo, run, wait, setStatus, setAttention, blip,
-      enableSound, get sound() { return !!(pen && pen.on); }, set sound(v) { if (v) enableSound(); if (pen) pen.on = !!v; },
+      drawPath, sketch, paper, chime,
+      enableSound, get sound() { return !!(pen && pen.on); }, set sound(v) { if (v) enableSound(); if (pen) { pen.on = !!v; if (pen.room) pen.room.gain.setTargetAtTime(v ? 0.018 : 0, pen.ac.currentTime, 0.4); } },
       get busy() { return busy; }, get parked() { return parked; }, set parked(v) { parked = v; },
       keepOnScreen() {
         const top = scrollY + 90, bottom = scrollY + innerHeight - 80;

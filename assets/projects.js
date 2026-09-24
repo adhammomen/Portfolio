@@ -88,6 +88,7 @@ window.PORTFOLIO = {
       best: true,
       notes: ["this one is the big one. still building it.", "it runs on the same server as this page.", "ask me about it — type 'ordium'."],
       doodle: "bang",
+      // sketch: { nodes: [{ label: "client", x: .2, y: .5 }, { label: "ordium", x: .5, y: .5 }, { label: "db", x: .8, y: .5 }], edges: [[0, 1], [1, 2]] },
     },
     {
       title: "Kingsmaker",
@@ -111,6 +112,11 @@ window.PORTFOLIO = {
       demo: "",
       notes: ["you're looking at it.", "yes, I wrote the cursor too."],
       doodle: "check",
+      // the host sketches this on the sheet when the project opens. x/y are 0..1 across the napkin.
+      sketch: {
+        nodes: [{ label: "you", x: 0.14, y: 0.5 }, { label: "the page", x: 0.5, y: 0.5 }, { label: "the host", x: 0.5, y: 0.14 }, { label: "ink layer", x: 0.86, y: 0.5 }],
+        edges: [[0, 1, "scroll"], [2, 1, "walks ahead"], [1, 3, "draws on"]],
+      },
     },
   ],
 };

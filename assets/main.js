@@ -20,6 +20,18 @@
   $("[data-initials]").textContent = D.name.split(/\s+/).map((w) => w[0]).join("");
   $("[data-first]").textContent = first;
   $("[data-last]").textContent = rest.join(" ");
+  // the name as real glyph outlines, so the host can write it
+  const NP = window.NAME_PATHS;
+  const glyphPaths = [];
+  if (NP && NP.lines.length === 2) {
+    [$("[data-first]"), $("[data-last]")].forEach((span, li) => {
+      const line = NP.lines[li];
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("class", "name-svg"); svg.setAttribute("viewBox", `0 0 ${line.width} ${NP.height}`); svg.setAttribute("aria-hidden", "true");
+      line.glyphs.forEach((g) => { const p = document.createElementNS("http://www.w3.org/2000/svg", "path"); p.setAttribute("d", g.d); svg.append(p); glyphPaths.push(p); });
+      span.parentElement.append(svg);
+    });
+  } else root.classList.add("no-write");
   $("[data-host-name]").textContent = first;
   $("[data-host-first]").textContent = first;
   $("[data-presence]").textContent = `${first} is here`;
@@ -42,7 +54,7 @@
     b.innerHTML = `<span class="plate-idx mono">${String(i + 1).padStart(2, "0")}</span>
       <h3 class="plate-title"><span></span></h3>
       <span class="plate-side mono"><span class="status ${p.status}">${STATUS[p.status] || p.status}</span><span>${p.year || ""}</span></span>
-      <p class="plate-desc"></p>`;
+      <p class="plate-desc"></p><span class="rule" data-rule></span>`;
     $(".plate-title span", b).textContent = p.title;
     $(".plate-desc", b).textContent = p.description;
     plates.append(b);
@@ -67,10 +79,13 @@
     if (p.demo) { const a = document.createElement("a"); a.href = p.demo; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Visit ↗"; links.append(a); }
     if (p.repo) { const a = document.createElement("a"); a.href = p.repo; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Source ↗"; links.append(a); }
     if (!p.demo && !p.repo) { const s = document.createElement("span"); s.textContent = "Links coming soon"; links.append(s); }
+    const sk = $("[data-sheet-sketch]", sheet); sk.replaceChildren(); sk.toggleAttribute("hidden", !p.sketch);
     if (hasGsap && !reduce) gsap.from([".sheet-title", ".sheet-note", ".sheet-desc", ".sheet-tags", ".sheet-links"].map((s) => $(s, sheet)), { y: 24, opacity: 0, duration: 0.8, ease: "expo.out", stagger: 0.07 });
+    if (p.sketch && window.__host) window.__host.run(async () => { await window.__host.wait(700); await window.__host.sketch(sk, p.sketch); }, { priority: true, interrupt: true });
   }
   function openSheet(i) {
-    fillSheet(i); sheet.hidden = false; sheetOpen = true;
+    sheet.hidden = false; sheetOpen = true; fillSheet(i);
+    if (window.__host) window.__host.paper();
     if (lenis) lenis.stop();
     if (hasGsap && !reduce) {
       gsap.fromTo(".sheet-scrim", { opacity: 0 }, { opacity: 1, duration: 0.5 });
@@ -80,19 +95,19 @@
     remember({ opened: [...new Set([...(memory.opened || []), i])] });
   }
   let userClosedSheet = false;
-  function closeSheet() {
+  function closeSheet(viaKeyboard) {
     if (!sheetOpen) return; sheetOpen = false; userClosedSheet = true;
-    const done = () => { sheet.hidden = true; if (lenis) lenis.start(); plateEls[sheetIdx] && plateEls[sheetIdx].focus(); };
+    const done = () => { sheet.hidden = true; if (lenis) lenis.start(); if (viaKeyboard === true && plateEls[sheetIdx]) plateEls[sheetIdx].focus({ preventScroll: true }); };
     if (hasGsap && !reduce) {
       gsap.to(".sheet-scrim", { opacity: 0, duration: 0.4 });
       gsap.to(".sheet-panel", { ...(innerWidth >= 900 ? { xPercent: 100 } : { yPercent: 100 }), duration: 0.6, ease: "expo.in", onComplete: done });
     } else done();
   }
   plateEls.forEach((el, i) => el.addEventListener("click", () => openSheet(i)));
-  $$("[data-sheet-close]", sheet).forEach((b) => b.addEventListener("click", closeSheet));
+  $$("[data-sheet-close]", sheet).forEach((b) => b.addEventListener("click", () => closeSheet(false)));
   $("[data-sheet-prev]", sheet).addEventListener("click", () => fillSheet((sheetIdx - 1 + D.projects.length) % D.projects.length));
   $("[data-sheet-next]", sheet).addEventListener("click", () => fillSheet((sheetIdx + 1) % D.projects.length));
-  addEventListener("keydown", (e) => { if (e.key === "Escape") { closeSheet(); closeAsk(); } });
+  addEventListener("keydown", (e) => { if (e.key === "Escape") { closeSheet(true); closeAsk(); } });
 
   // ------------------------------------------------------------------ scroll
   let lenis = null;
@@ -114,6 +129,11 @@
   if (lenis) { lenis.on("scroll", ScrollTrigger.update); gsap.ticker.add((t) => lenis.raf(t * 1000)); gsap.ticker.lagSmoothing(0); }
 
   const host = Host({ ...D.host, scroller: scrollPage, onStatus: (st) => { $("[data-presence]").textContent = `${first} is here${st ? " · " + st : ""}`; } });
+  window.__host = host;
+  // the lamp follows the pointer; it's night when it's night for the visitor
+  const lamp = $(".lamp");
+  if (new Date().getHours() >= 20 || new Date().getHours() < 6) root.classList.add("night");
+  addEventListener("pointermove", (e) => { lamp.style.setProperty("--lx", e.clientX + "px"); lamp.style.setProperty("--ly", e.clientY + "px"); }, { passive: true });
   const toasts = $("#toasts");
   function toast(who, text, cls) {
     const t = document.createElement("div"); t.className = "toast";
@@ -121,7 +141,7 @@
     toasts.append(t); setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 450); }, 2600);
   }
   setTimeout(() => toast("you", D.host.joined, "you"), 300);
-  setTimeout(() => toast(first, D.host.joined), 1100);
+  setTimeout(() => { toast(first, D.host.joined); host.chime(); }, 1100);
   try { console.log(`%c${D.host.console}`, "font: 600 16px 'Caveat', cursive; color: #1d4ed8"); } catch (_) {}
   let tourOn = true;
   const tourBtn = $("[data-tour]");
@@ -159,17 +179,32 @@
   }
 
   // intro
+  async function writeName() {
+    if (!glyphPaths.length) return;
+    for (const p of glyphPaths) {
+      p.classList.add("pen");
+      const len = p.getTotalLength();
+      await host.drawPath(p, Math.min(900, Math.max(260, len / 9)));
+      p.classList.remove("pen"); p.classList.add("inked");
+    }
+  }
+  if (returning || reduce || !glyphPaths.length) root.classList.add("no-write");
   async function intro() {
-    await host.wait(reduce ? 200 : 900);
+    await host.wait(reduce ? 200 : 700);
     await host.moveTo(innerWidth * 0.62, scrollY + innerHeight * 0.38, 900);
     await host.wave();
+    if (!returning && !reduce) {
+      await host.speak(D.host.intro[0], 700);
+      await writeName();
+      root.classList.add("no-write"); // whatever wasn't written (an interruption) shows now
+      await host.wait(300);
+    }
     if (returning) {
       await host.speak(D.host.returning[0], 1200);
       const reached = D.projects[memory.reached - 1];
       if (reached) await host.speak(`you got as far as ${reached.title} last time.`, 1800);
       await host.speak(D.host.returning[1], 1600);
     } else {
-      await host.speak(D.host.intro[0], 1100);
       if (greeting) await host.speak(greeting, 900);
       if (hereLine) await host.speak(hereLine, 1300);
       await host.speak(D.host.intro[1], 1000);
@@ -492,7 +527,8 @@
   });
 
   // ------------------------------------------------------------------ choreography
-  gsap.from(".hero .line > span", { yPercent: 110, duration: 1.1, stagger: 0.08, ease: "expo.out", delay: 0.2 });
+  gsap.from(".hero .line:not(.hero-name .line) > span", { yPercent: 110, duration: 1.1, stagger: 0.08, ease: "expo.out", delay: 0.2 });
+  $$("[data-rule]").forEach((r, i) => ScrollTrigger.create({ trigger: r, start: "top 92%", onEnter: () => setTimeout(() => r.classList.add("is-drawn"), (i % 3) * 120) }));
   gsap.from(".hud", { y: -20, opacity: 0, duration: 0.8, delay: 0.6 });
   gsap.fromTo(".manifesto .w", { opacity: 0.15 }, { opacity: 1, stagger: 0.05, ease: "none", scrollTrigger: { trigger: ".manifesto", start: "top 80%", end: "bottom 55%", scrub: true } });
   $$(".label, .plate, .contact-title .line > span, .contact-line").forEach((el) => gsap.from(el, { y: 36, opacity: 0, duration: 1, ease: "expo.out", scrollTrigger: { trigger: el, start: "top 90%" } }));

@@ -15,6 +15,15 @@
   <body>
     <a class="skip" href="#work">Skip to work</a>
 
+    <div class="grain" aria-hidden="true"></div>
+    <div class="lamp" aria-hidden="true"></div>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <filter id="bleed" x="-5%" y="-5%" width="110%" height="110%">
+        <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="1" result="n" />
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="1.6" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </svg>
+
     <!-- annotation layer: everything the host draws, in document coordinates -->
     <svg class="ink" id="ink" aria-hidden="true"></svg>
 
@@ -58,6 +67,7 @@
           <span class="line"><span data-first></span></span>
           <span class="line"><span data-last></span></span>
         </h1>
+        <span class="rule" data-rule></span>
         <div class="hero-foot">
           <p class="hero-tag"><span class="line"><span data-bind="tagline"></span></span></p>
           <p class="mono muted"><span class="line"><span data-bind="role"></span></span></p>
@@ -72,6 +82,7 @@
 
       <section id="work" class="work">
         <p class="label mono">(02) — Selected work · <span data-count></span></p>
+        <span class="rule" data-rule></span>
         <div class="plates"></div>
       </section>
 
@@ -93,6 +104,7 @@
         <button class="sheet-close mono" type="button" data-sheet-close>Close ✕</button>
         <p class="mono sheet-meta"><span data-sheet-idx></span> · <span data-sheet-status></span> · <span data-sheet-year></span></p>
         <h2 class="sheet-title" id="sheet-title" data-sheet-title></h2>
+        <svg class="sheet-sketch" data-sheet-sketch viewBox="0 0 640 360" hidden aria-label="Sketch"></svg>
         <p class="hand sheet-note" data-sheet-note></p>
         <p class="sheet-desc" data-sheet-desc></p>
         <ul class="sheet-tags mono" data-sheet-tags></ul>
@@ -101,6 +113,7 @@
       </div>
     </div>
 
+    <span class="rule" data-rule style="margin:0 var(--pad)"></span>
     <footer class="footer mono">
       <span>© <span data-year></span> <span data-bind="name"></span></span>
       <span class="muted">Handwriting mine. Cursor mine. Bugs mine.</span>
@@ -111,6 +124,7 @@
     <script src="assets/vendor/ScrollTrigger.min.js"></script>
     <script src="assets/vendor/lenis.min.js"></script>
     <script src="assets/projects.js"></script>
+    <script src="assets/name-path.js"></script>
     <script src="assets/host.js"></script>
     <script src="assets/main.js"></script>
   </body>
