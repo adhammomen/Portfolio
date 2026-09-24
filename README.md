@@ -9,6 +9,10 @@ A portfolio that isn't a museum. When someone opens it, they are not alone: I'm 
 - **I walk between them.** The cursor, the bubbles, the ink, the notes: the host is one host, and it crosses the gap when it wants to be in the other window.
 - **The other window is the reading room.** Open a project and it opens *over there*; I walk over and sketch its architecture on that sheet. Drag a project's plate from one window into the other and it opens where you dropped it.
 - **Liquid ink.** Everything drawn (mine and yours) remembers what it was drawn around, so when the desk grows or shrinks the marks move and stretch with the words.
+- **I move your window.** When the second window opens I walk over, take hold of it and slide it into place, edge to edge with the first (a popup this page opened can be moved by it; if the browser refuses, I ask you to). Lined up, the seam heals: I draw one line across both windows to prove it's one page.
+- **A window is an instrument, and where you put it decides which.** Beside the first window it's more desk. Dragged *over* the first window it becomes an **x-ray**: the same spot of the page as a blueprint, every element outlined and labelled with its tag, the name as bare outlines, the ink faint. Make it small and it's a **loupe**: the page at 2x around wherever you hold it. Open as many windows as you like; each one decides for itself.
+- **Carried across.** When a project goes to the reading room I carry its name under my cursor across the gap. With sound on, my voice pans across the monitor to wherever I am.
+- Each window's title bar says what it is (window 1, window 2, x-ray, loupe), and the second window reopens where you last left it.
 - The first window runs the show; the others mirror it (a BroadcastChannel, no server). On phones there is one window and none of this gets in the way.
 
 ## The interview, the rewind, the handoff, the machine

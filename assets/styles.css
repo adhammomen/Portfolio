@@ -301,3 +301,41 @@ html.screen-space .machine { display: grid; grid-template-columns: 1fr 1.2fr; co
 html.screen-space .machine .label { grid-column: 1 / -1; }
 html.screen-space .gauges { max-width: none; }
 html.screen-space .machine-status { grid-column: 2; }
+
+/* ---------------------------------------------------------------- instruments: what a window is depends on where you put it */
+/* x-ray: a second window dragged over the first shows the page's construction */
+html.xray { --paper: #eef1fb; --paper-2: #e3e8f8; }
+html.xray body { background: var(--paper); background-image: linear-gradient(rgba(29,78,216,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(29,78,216,.07) 1px, transparent 1px); background-size: 40px 40px; }
+html.xray .grain, html.xray .lamp { display: none; }
+html.xray #page * { color: transparent !important; -webkit-text-stroke: 0.7px var(--pen); background: transparent !important; outline: 1px dashed rgba(29,78,216,.5); outline-offset: -1px; border-color: rgba(29,78,216,.6) !important; box-shadow: none !important; text-shadow: none !important; }
+html.xray #page .name-svg path { fill: none !important; stroke: var(--pen); stroke-width: 1.4; opacity: 1 !important; }
+html.xray #page .name-svg { outline: 0; }
+html.xray #page .stroke { stroke: rgba(29,78,216,.35); }
+html.xray #page .note { color: transparent !important; -webkit-text-stroke: 0.5px var(--pen); outline: 1px dotted rgba(29,78,216,.5); }
+html.xray #page .rule::after, html.xray #page .rule::before { opacity: .4; }
+html.xray #page [id]::before, html.xray #page .plate::before, html.xray #page .hero-name::before, html.xray #page .manifesto::before, html.xray #page .caps::before, html.xray #page .gauges::before, html.xray #page .guest::before, html.xray #page .rewind::before {
+  content: "<section#" attr(id) ">"; position: absolute; left: 0; top: -1.6em; font: 500 11px/1 var(--mono); letter-spacing: .06em; color: var(--pen) !important; -webkit-text-stroke: 0; background: var(--paper) !important; padding: 2px 6px; outline: 1px solid var(--pen); pointer-events: none; z-index: 3;
+}
+html.xray #page .plate::before { content: "<button.plate>"; top: 6px; left: 0; }
+html.xray #page .hero-name::before { content: "<h1> · " attr(data-x); }
+html.xray #page .manifesto::before { content: "<p.manifesto> · one <span> per word"; }
+html.xray #page .caps::before { content: "<ul.caps>"; }
+html.xray #page .gauges::before { content: "<div.gauges> · svg drawn live"; }
+html.xray #page .guest::before { content: "<form.guest> · handoff"; }
+html.xray #page .rewind::before { content: "<div.rewind> · git log"; }
+html.xray #page section, html.xray #page .plate, html.xray #page .hero-name, html.xray #page .manifesto, html.xray #page .caps, html.xray #page .gauges, html.xray #page .guest, html.xray #page .rewind { position: relative; }
+html.xray #page #ink::before, html.xray #page main::before { display: none; }
+html.xray .hud::after, html.lens .hud::after { content: "x-ray"; position: fixed; left: var(--pad); bottom: 20px; font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--pen); border: 1px solid var(--pen); border-radius: 999px; padding: 6px 12px; background: var(--paper); }
+html.lens .hud::after { content: "loupe · 2x"; }
+/* loupe: a small window over the first one shows the page at 2x, around its own centre */
+html.lens #page { transform: scale(2); will-change: transform; }
+html.lens .hud .nav { display: none; }
+html.xray #page .hero::before { content: "<section.hero>"; }
+html.xray .host-arrow { fill: transparent; stroke: var(--pen); stroke-width: 1.5; }
+
+
+/* the host carrying something, or holding a window */
+.host-carry { position: absolute; left: 22px; top: 26px; white-space: nowrap; background: var(--ink); color: var(--paper); font-size: 11px; padding: 3px 8px; border-radius: 3px; transform: rotate(-4deg); box-shadow: 0 4px 12px rgba(0,0,0,.2); transition: transform .3s; }
+.host-carry[hidden] { display: none; }
+.host.is-carry .host-tag { top: 48px; }
+.host.is-grab .host-arrow { transform: rotate(-35deg) scale(.9); }

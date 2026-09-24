@@ -28,9 +28,11 @@
 
     let posT = 0;
     function render() {
-      el.style.transform = `translate3d(${pos.x - OX()}px,${pos.y - scrollY}px,0)`;
-      el.classList.toggle("flip", pos.x - OX() > innerWidth * 0.6);
+      const S = window.SCREEN, cx = S ? S.cx(pos.x) : pos.x, cy = S ? S.cy(pos.y) : pos.y - scrollY;
+      el.style.transform = `translate3d(${cx}px,${cy}px,0)`;
+      el.classList.toggle("flip", cx > innerWidth * 0.6);
       if (!mirror && performance.now() - posT > 16) { posT = performance.now(); post({ t: "pos", x: pos.x, y: pos.y }); }
+      if (pen && pen.pan) { const S = window.SCREEN, sw = S && S.multi ? S.sw : innerWidth, cx = S && S.multi ? pos.x : pos.x - OX(); pen.pan.pan.value = clamp((cx - sw / 2) / (sw / 2), -1, 1) * 0.8; }
       // a faint ink trail when moving fast
       const d = Math.hypot(pos.x - lastX, pos.y - lastY);
       const now = performance.now();
@@ -44,7 +46,7 @@
       }
       lastX = pos.x; lastY = pos.y;
     }
-    const reposition = () => { lastX = pos.x; lastY = pos.y; el.style.transform = `translate3d(${pos.x - OX()}px,${pos.y - scrollY}px,0)`; };
+    const reposition = () => { lastX = pos.x; lastY = pos.y; const S = window.SCREEN; el.style.transform = `translate3d(${S ? S.cx(pos.x) : pos.x}px,${S ? S.cy(pos.y) : pos.y - scrollY}px,0)`; };
     addEventListener("scroll", reposition, { passive: true });
     if (window.SCREEN) window.SCREEN.listen("move", reposition);
 
@@ -339,6 +341,10 @@
       ringAt(pos.x, pos.y); post({ t: "ring", x: pos.x, y: pos.y });
       target.click();
     }
+    const carryEl = document.createElement("span"); carryEl.className = "host-carry mono"; carryEl.hidden = true; el.append(carryEl);
+    function carry(text) { carryEl.textContent = text; carryEl.hidden = !text; el.classList.toggle("is-carry", !!text); post({ t: "carry", text: text || "" }); }
+    function jump(x, y) { pos.x = x; pos.y = y; lastX = x; lastY = y; render(); }
+    function grab(on) { el.classList.toggle("is-grab", !!on); post({ t: "grab", on: !!on }); }
     function ringAt(x, y) { const ring = document.createElement("span"); ring.className = "click-ring"; ring.style.left = x + "px"; ring.style.top = y + "px"; page().append(ring); setTimeout(() => ring.remove(), 700); }
     async function writeNear(target, text, side = "right", stack = 0) {
       const r = rectOf(target);
@@ -390,7 +396,9 @@
       const ac = new (window.AudioContext || window.webkitAudioContext)();
       const buf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
       const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      pen = { ac, buf, on: true };
+      const out = ac.createStereoPanner ? ac.createStereoPanner() : null;
+      if (out) out.connect(ac.destination);
+      pen = { ac, buf, on: true, out: out || ac.destination, pan: out };
       ac.resume();
       ambience();
       return pen;
@@ -412,7 +420,7 @@
       const s = ac.createBufferSource(); s.buffer = buf;
       const f = ac.createBiquadFilter(); f.type = "bandpass"; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(2600, t + 0.35); f.Q.value = 0.8;
       const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.12, t + 0.08); g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-      s.connect(f).connect(g).connect(ac.destination); s.start(t); s.stop(t + 0.55);
+      s.connect(f).connect(g).connect(pen.out); s.start(t); s.stop(t + 0.55);
     }
     // two soft notes when someone joins
     function chime() {
@@ -422,7 +430,7 @@
         const o = ac.createOscillator(), g = ac.createGain();
         o.type = "sine"; o.frequency.value = f;
         g.gain.setValueAtTime(0, t + i * 0.12); g.gain.linearRampToValueAtTime(0.08, t + i * 0.12 + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.12 + 0.7);
-        o.connect(g).connect(ac.destination); o.start(t + i * 0.12); o.stop(t + i * 0.12 + 0.8);
+        o.connect(g).connect(pen.out); o.start(t + i * 0.12); o.stop(t + i * 0.12 + 0.8);
       });
     }
     // a tiny voice: one pitched blip per letter, like a creature in a video game
@@ -433,7 +441,7 @@
       const semis = (ch.toLowerCase().charCodeAt(0) * 7) % 12;
       o.type = "triangle"; o.frequency.value = 330 * Math.pow(2, semis / 12) * (opts.voicePitch || 1);
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.09, t + 0.008); g.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
-      o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.08);
+      o.connect(g).connect(pen.out); o.start(t); o.stop(t + 0.08);
     }
     function scratch(ms) {
       if (!pen || !pen.on) return;
@@ -441,7 +449,7 @@
       const s = ac.createBufferSource(); s.buffer = buf; s.loop = true;
       const f = ac.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1800 + Math.random() * 1200; f.Q.value = 1.2;
       const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05, t + 0.03); g.gain.linearRampToValueAtTime(0, t + Math.min(0.5, ms / 1000));
-      s.connect(f).connect(g).connect(ac.destination); s.start(t); s.stop(t + Math.min(0.5, ms / 1000) + 0.05);
+      s.connect(f).connect(g).connect(pen.out); s.start(t); s.stop(t + Math.min(0.5, ms / 1000) + 0.05);
     }
 
     // --- body language: never quite still. drifts, glances at what you look at, re-reads its notes
@@ -501,6 +509,8 @@
         case "status": setStatus(m.s); break;
         case "click": el.classList.add("is-click"); setTimeout(() => el.classList.remove("is-click"), 140); break;
         case "ring": ringAt(m.x, m.y); break;
+        case "carry": carryEl.textContent = m.text; carryEl.hidden = !m.text; el.classList.toggle("is-carry", !!m.text); break;
+        case "grab": el.classList.toggle("is-grab", !!m.on); break;
         case "say":
           clearTimeout(sayT);
           if (m.hidden) { say.hidden = true; break; }
@@ -561,7 +571,7 @@
         const top = scrollY + 90, bottom = scrollY + innerHeight - 80, left = OX() + 30, right = OX() + innerWidth - 60;
         if (pos.y < top || pos.y > bottom || pos.x < left || pos.x > right) { pos.y = clamp(pos.y, top, bottom); pos.x = clamp(pos.x, left, right); lastX = pos.x; lastY = pos.y; render(); }
       },
-      apply, snapshot, applySnapshot, ringAt, anchor, reflow, rewind, get marks() { return marks; },
+      apply, snapshot, applySnapshot, ringAt, anchor, reflow, rewind, carry, grab, jump, traceAlong, get marks() { return marks; },
       rectOf,
     };
   }

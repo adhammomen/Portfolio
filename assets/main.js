@@ -107,7 +107,7 @@
       post({ t: "sheet", open: true, i });
       remember({ opened: [...new Set([...(memory.opened || []), i])] });
       const o = S.other();
-      if (o) host.run(async () => { await host.speak(D.host.overThere, 1100); await host.moveTo(o.x + o.w * 0.5, o.y + o.h * 0.35, 1100); }, { priority: true, interrupt: true });
+      if (o) host.run(async () => { await host.speak(D.host.overThere, 1100); host.carry(D.projects[i].title); await host.moveTo(o.x + o.w * 0.5, o.y + o.h * 0.35, 1100); host.carry(""); }, { priority: true, interrupt: true });
       return;
     }
     if (!leader) post({ t: "open", i, at: "me" }); else if (S && S.multi) post({ t: "sheet", open: false });
@@ -264,6 +264,10 @@
       host.anchor(host.stroke(`M${host.pos.x} ${host.pos.y + 20} q10 40 -6 80 M${host.pos.x - 6} ${host.pos.y + 100} l-10 -16 M${host.pos.x - 6} ${host.pos.y + 100} l14 -12`, { ms: 500 }), tag);
       await host.wait(400);
       if (!memory.who) await interview();
+      if (fine && S && !S.multi && !memory.usedTwo) {
+        await host.speak(D.host.secondHint, 2400);
+        const btn = $("[data-second]"); if (btn) { const r = btn.getBoundingClientRect(); await host.arrow(r.left + OX() - 140, r.top + scrollY + 90, btn); }
+      }
     }
   }
   if (leader) host.run(intro);
@@ -442,7 +446,7 @@
   const you = $("#you");
   let lookT = 0;
   addEventListener("pointermove", (e) => {
-    mouse.x = e.clientX + OX(); mouse.y = e.clientY + scrollY;
+    mouse.x = S ? S.px(e.clientX) : e.clientX; mouse.y = S ? S.py(e.clientY) : e.clientY + scrollY;
     if (fine) { you.classList.add("on"); you.style.transform = `translate3d(${e.clientX}px,${e.clientY}px,0)`; }
     if (!leader) { if (performance.now() - lookT > 60) { lookT = performance.now(); post({ t: "look", x: mouse.x, y: mouse.y }); } return; }
     host.setAttention(mouse.x, mouse.y);
@@ -499,6 +503,8 @@
     if (!leader) { post({ t: "act", action }); return; }
     if (action === "hero") { await host.scrollTo($(".hero-name"), 0.15); await host.circle($("[data-first]")); return; }
     if (action === "about") { await host.scrollTo($(".manifesto"), 0.2); await host.underline(words[0]); await host.writeNear(capEls[0], "all of these.", "below"); return; }
+    if (action === "dock") { if (S && S.multi && typeof dock === "function") { if (!(await dock())) return; } else if (S && !S.multi) { await host.speak(D.host.secondHint, 2200); } return; }
+    if (action === "xrayhint") { if (!(S && S.multi)) await host.speak(D.host.secondHint, 2200); return; }
     if (action === "contact") { await host.scrollTo($(".contact-title"), 0.15); await host.circle($(".contact-link")); return; }
     if (action === "best") {
       const i = Math.max(0, D.projects.findIndex((p) => p.best));
@@ -580,13 +586,15 @@
     path.setAttribute("class", "stroke you-stroke");
     inkLayer.append(path);
     const near = e.target.closest("section, footer") || pageEl;
-    drawing = { path, pts: [[e.clientX + OX(), e.clientY + scrollY]], near };
-    path.setAttribute("d", `M${e.clientX + OX()} ${e.clientY + scrollY}`);
+    const px = S ? S.px(e.clientX) : e.clientX, py = S ? S.py(e.clientY) : e.clientY + scrollY;
+    drawing = { path, pts: [[px, py]], near };
+    path.setAttribute("d", `M${px} ${py}`);
   });
   document.addEventListener("pointermove", (e) => {
     if (!drawing) return;
-    drawing.pts.push([e.clientX + OX(), e.clientY + scrollY]);
-    drawing.path.setAttribute("d", drawing.path.getAttribute("d") + ` L${e.clientX + OX()} ${e.clientY + scrollY}`);
+    const px = S ? S.px(e.clientX) : e.clientX, py = S ? S.py(e.clientY) : e.clientY + scrollY;
+    drawing.pts.push([px, py]);
+    drawing.path.setAttribute("d", drawing.path.getAttribute("d") + ` L${px} ${py}`);
   });
   function endDraw() {
     if (!drawing) return;
@@ -800,10 +808,29 @@
       if (leader) { post(host.snapshot()); host.run(async () => { host.keepOnScreen(); await host.speak(on ? D.host.bigger : D.host.smaller, 1400); }, { priority: true }); }
     });
     S.listen("move", () => { host.reflow(); ScrollTrigger.update(); });
-    // someone opened a second window: the host walks into it
-    let greetedPeer = false;
+    // the host takes hold of the second window and slides it into place, edge to edge with this one
+    async function dock() {
+      const o = S.other(); if (!o || !S.second || S.second.closed || o.sx == null) return false;
+      const gap = 10, room = screen.availWidth - (screenX + outerWidth);
+      const w = Math.max(420, Math.min(o.ow, room > 480 ? room - gap - 8 : o.ow));
+      let x = room > 480 ? screenX + outerWidth + gap : screenX - w - gap; if (x < 0) x = 0;
+      const y = screenY, h = outerHeight;
+      if (Math.abs(o.sx - x) < 24 && Math.abs(o.syy - y) < 24) return true;
+      await host.speak(D.host.docking, 1200);
+      await host.moveTo(o.x + 26, o.y + 18, 600);
+      host.grab(true);
+      const follow = setInterval(() => { const q = S.other(); if (q) host.jump(q.x + 26, q.y + 18); }, 16);
+      const ok = await S.moveSecond(x, y, w, h, 1100);
+      clearInterval(follow); host.grab(false);
+      if (!ok) { await host.speak(D.host.cantMove, 2400); return false; }
+      await host.wait(400);
+      return true;
+    }
+    // someone opened a second window: the host walks into it, then puts it where it belongs
+    let greetedPeer = false, seamed = false, xrayed = false;
     S.listen("hello", (peer) => {
       if (!leader) { post({ t: "snapreq" }); return; }
+      remember({ usedTwo: true });
       toast("you", D.host.secondJoined, "you");
       setTimeout(() => post(host.snapshot()), 300);
       if (greetedPeer) return; greetedPeer = true;
@@ -814,11 +841,31 @@
         await host.moveTo(o.x + o.w * 0.5, o.y + o.h * 0.4, 1400);
         await host.wave();
         await host.speak(pick(D.host.otherWindow), 1800);
+        const docked = await dock();
+        await host.wait(S.seam ? 1800 : 300);
+        if (docked && fine) await host.speak(D.host.xrayHint, 2400);
         if (fine) await host.speak(D.host.dragHint, 2200);
         await host.moveTo(back.x, back.y, 1200);
         host.keepOnScreen();
       }, { priority: true });
     });
+    // two windows edge to edge: one line across both, to prove it
+    S.listen("seam", (on) => {
+      if (!on || !leader || seamed) return; seamed = true;
+      host.run(async () => {
+        const o = S.other(); if (!o) return;
+        const left = o.vx > S.vx ? { x: S.vx + innerWidth, y: scrollY + innerHeight * 0.5 } : { x: o.x + o.w, y: o.y + o.h * 0.5 };
+        const x1 = left.x - Math.min(260, innerWidth * 0.3), x2 = left.x + Math.min(260, (o.vx > S.vx ? o.w : innerWidth) * 0.3), y = left.y;
+        await host.moveTo(x1, y - 10, 500);
+        const d = `M${x1} ${y} Q${(x1 + x2) / 2} ${y + 6} ${x2} ${y - 2}`;
+        host.stroke(d, { ms: 900 }); await host.traceAlong(d, 900);
+        await host.speak(D.host.seam, 1600);
+      }, { priority: true });
+    });
+    const baseTitle = document.title;
+    const retitle = () => { document.title = !S.multi ? baseTitle : leader ? `${baseTitle} · window 1` : S.instrument === "xray" ? `${baseTitle} · x-ray` : S.instrument === "lens" ? `${baseTitle} · loupe` : `${baseTitle} · window 2`; };
+    S.listen("instrument", (inst) => { retitle(); toast("you", inst === "xray" ? "x-ray" : inst === "lens" ? "loupe" : "back to the desk", "you"); });
+    S.listen("mode", retitle);
     S.listen("bye", () => { if (leader) host.run(async () => { host.keepOnScreen(); await host.speak(D.host.windowGone, 1400); }, { priority: true, interrupt: true }); });
     S.listen("leader-lost", () => host.quip(D.host.leaderLost, 1200));
     S.listen("op", (m) => {
@@ -840,6 +887,7 @@
         else if (m.t === "you") { const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); path.setAttribute("class", "stroke you-stroke"); path.setAttribute("d", m.d); inkLayer.append(path); host.anchor(path, $("#" + m.near) || pageEl); }
         else if (m.t === "focus") host.quip(D.host.alreadyTwo, 1600);
         else if (m.t === "rewind") rewindTo(m.v, true);
+        else if (m.t === "instrument") { if (m.inst === "xray") { if (!xrayed) { xrayed = true; host.run(async () => { await host.speak(D.host.xray, 1800); }, { priority: true, interrupt: true }); } } else if (m.inst === "lens") host.quip(D.host.lens, 1600); else if (xrayed) host.quip(D.host.xrayOff, 1200); }
       } else {
         if (m.t === "snap") { host.applySnapshot(m); if (root.classList.contains("no-write")) {} }
         else if (m.t === "sheet") { if (m.open) showSheet(m.i); else closeSheet(false); }
