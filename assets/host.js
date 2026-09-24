@@ -112,9 +112,9 @@
     // liquid ink: a mark remembers what it was drawn around (and that thing's rect at the time),
     // so when the desk changes size the mark moves and stretches with it
     const anchored = new Set();
-    function anchor(el, target) {
+    function anchor(el, target, r0) {
       if (!el || !target) return el;
-      el.__a = { t: target, r: rectOf(target) };
+      el.__a = { t: target, r: r0 || rectOf(target) };
       anchored.add(el);
       return el;
     }
@@ -132,7 +132,8 @@
       sizeInk();
       if (pos.y > 0) { lastX = pos.x; lastY = pos.y; render(); }
     }
-    const intoName = (into) => (into === ink ? "ink" : into && into.hasAttribute && into.hasAttribute("data-sheet-sketch") ? "sketch" : null);
+    const intoName = (into) => (into === ink ? "ink" : into && into.hasAttribute && into.hasAttribute("data-sheet-sketch") ? "sketch" : into && into.id ? "#" + into.id : null);
+    const intoEl = (name) => (name === "ink" ? ink : name === "sketch" ? sketchSvg() : name && name[0] === "#" ? document.getElementById(name.slice(1)) : null);
     function stroke(d, { width = 2.2, ms = 700, into = ink, id } = {}) {
       if (aborting) return null;
       const p = document.createElementNS(NS, "path");
@@ -143,6 +144,7 @@
       into.append(p);
       const where = intoName(into);
       if (where) post({ t: "stroke", sid: p.dataset.sid, d, width, ms, into: where });
+      marks.push({ el: p, kind: "stroke" });
       const len = p.getTotalLength();
       p.style.strokeDasharray = len; p.style.strokeDashoffset = len;
       gsap.to(p, { strokeDashoffset: 0, duration: ms / 1000, ease: "power1.inOut", onComplete: () => setTimeout(() => p.classList.remove("wet"), 1400) });
@@ -155,6 +157,7 @@
       if (aborting) return Promise.resolve();
       const len = pathEl.getTotalLength();
       post({ t: "draw", sid: pathEl.dataset.sid || null, glyph: glyphIndex(pathEl), ms });
+      if (glyphIndex(pathEl) > -1) marks.push({ el: pathEl, kind: "glyph" });
       pathEl.style.strokeDasharray = len; pathEl.style.strokeDashoffset = len;
       gsap.to(pathEl, { strokeDashoffset: 0, duration: ms / 1000, ease: "none" });
       scratch(ms);
@@ -190,7 +193,7 @@
       const label = (x, y, size) => {
         const id = ++sid; let t = null;
         if (local) { t = document.createElementNS(NS, "text"); t.setAttribute("x", x); t.setAttribute("y", y); t.setAttribute("text-anchor", "middle"); if (size) t.style.fontSize = size; svg.append(t); }
-        post({ t: "stext", id, x, y, size: size || "" });
+        post({ t: "stext", id, x, y, size: size || "", into: local ? intoName(svg) : "sketch" });
         return { set(v) { if (t) t.textContent = v; post({ t: "stextSet", id, text: v }); } };
       };
       for (const n of spec.nodes) {
@@ -285,9 +288,26 @@
           if (aborting) { n.remove(); post({ t: "noteRm", id: n.dataset.nid }); setStatus(""); res(n); return; }
           n.textContent = text.slice(0, ++i); post({ t: "noteText", id: n.dataset.nid, n: i });
           scratch(40);
-          if (i < text.length) setTimeout(type, 34 + Math.random() * 40); else { setStatus(""); res(n); }
+          if (i < text.length) setTimeout(type, 34 + Math.random() * 40); else { setStatus(""); marks.push({ el: n, kind: "note", text }); res(n); }
         })();
       });
+    }
+    // --- rewind: v = 1 is now, 0 is a blank page. every mark un-draws in reverse order, then draws back
+    const marks = [];
+    function rewind(v) {
+      v = clamp(v, 0, 1);
+      const live = marks.filter((m) => m.el.isConnected); const n = live.length; if (!n) return;
+      live.forEach((m, i) => {
+        const p = clamp(v * n - i, 0, 1);
+        if (m.kind === "note") { m.el.textContent = m.text.slice(0, Math.round(m.text.length * p)); return; }
+        const el = m.el;
+        if (m.len == null) { try { m.len = el.getTotalLength(); } catch (_) { m.len = 0; } }
+        el.classList.remove("wet");
+        el.style.strokeDasharray = m.len; el.style.strokeDashoffset = m.len * (1 - p);
+        if (m.kind === "glyph") { el.classList.toggle("inked", p >= 1); el.classList.toggle("pen", p < 1); if (p < 1) document.documentElement.classList.remove("no-write"); }
+        if (p >= 1 && m.kind === "stroke") { el.style.strokeDashoffset = 0; }
+      });
+      if (v >= 1) { const g = live.some((m) => m.kind === "glyph"); if (g) document.documentElement.classList.add("no-write"); }
     }
 
     // --- gestures, all in document coords
@@ -488,19 +508,20 @@
           if (m.text) { const last = m.text[m.text.length - 1]; if (!texts.has("say") || texts.get("say") !== m.text) blip(last); texts.set("say", m.text); }
           break;
         case "stroke": {
-          const into = m.into === "sketch" ? sketchSvg() : ink; if (!into) break;
+          const into = intoEl(m.into); if (!into) break;
           const p = stroke(m.d, { width: m.width, ms: m.ms, into, id: m.sid }); if (p) mirrored.set(m.sid, p);
           break;
         }
         case "draw": {
           const p = m.sid != null ? mirrored.get(m.sid) : document.querySelectorAll(".name-svg path")[m.glyph];
-          if (p) dash(p, m.ms, m.sid == null);
+          if (p) { dash(p, m.ms, m.sid == null); if (m.sid == null) marks.push({ el: p, kind: "glyph" }); }
           break;
         }
-        case "stext": { const svg = sketchSvg(); if (!svg) break; const t = document.createElementNS(NS, "text"); t.setAttribute("x", m.x); t.setAttribute("y", m.y); t.setAttribute("text-anchor", "middle"); if (m.size) t.style.fontSize = m.size; svg.append(t); texts.set(m.id, t); break; }
+        case "stext": { const svg = intoEl(m.into || "sketch"); if (!svg) break; const t = document.createElementNS(NS, "text"); t.setAttribute("x", m.x); t.setAttribute("y", m.y); t.setAttribute("text-anchor", "middle"); if (m.size) t.style.fontSize = m.size; svg.append(t); texts.set(m.id, t); break; }
         case "stextSet": { const t = texts.get(m.id); if (t) { t.textContent = m.text; scratch(40); } break; }
         case "note": { const { n } = placeNote(m.text, m.x, m.y, { rotate: m.rotate, size: m.size || undefined, cls: m.cls, id: m.id }); n.textContent = ""; n.dataset.full = m.text; notes.set(m.id, n); break; }
-        case "noteText": { const n = notes.get(m.id); if (n) { n.textContent = n.dataset.full.slice(0, m.n); scratch(40); } break; }
+        case "noteText": { const n = notes.get(m.id); if (n) { n.textContent = n.dataset.full.slice(0, m.n); scratch(40); if (m.n >= n.dataset.full.length) marks.push({ el: n, kind: "note", text: n.dataset.full }); } break; }
+        case "rewind": rewind(m.v); break;
         case "noteRm": { const n = notes.get(m.id); if (n) n.remove(); notes.delete(m.id); break; }
         case "clear": ink.querySelectorAll(".stroke").forEach((x) => x.remove()); document.querySelectorAll("#page .note").forEach((x) => x.remove()); break;
       }
@@ -519,7 +540,10 @@
     function applySnapshot(sn) {
       ink.querySelectorAll("path.stroke").forEach((x) => x.remove()); document.querySelectorAll("#page .note").forEach((x) => x.remove());
       for (const st of sn.strokes) { const p = document.createElementNS(NS, "path"); p.setAttribute("d", st.d); p.setAttribute("class", st.cls || "stroke"); if (st.width) p.style.strokeWidth = st.width; if (st.sid) { p.dataset.sid = st.sid; mirrored.set(st.sid, p); } if (st.tf) p.setAttribute("transform", st.tf); ink.append(p); }
-      for (const nt of sn.notes) { const { n } = placeNote(nt.text, nt.x, nt.y, { rotate: nt.rotate, size: nt.size || undefined, cls: nt.cls, id: nt.id || undefined }); if (nt.id) notes.set(nt.id, n); }
+      marks.length = 0;
+      for (const nt of sn.notes) { const { n } = placeNote(nt.text, nt.x, nt.y, { rotate: nt.rotate, size: nt.size || undefined, cls: nt.cls, id: nt.id || undefined }); if (nt.id) notes.set(nt.id, n); marks.push({ el: n, kind: "note", text: nt.text }); }
+      ink.querySelectorAll("path.stroke").forEach((p) => marks.push({ el: p, kind: "stroke" }));
+      document.querySelectorAll(".name-svg path.inked").forEach((p) => marks.unshift({ el: p, kind: "glyph" }));
       document.querySelectorAll(".name-svg path").forEach((p, i) => { if (sn.written[i]) { p.classList.remove("pen"); p.classList.add("inked"); } });
       document.documentElement.classList.toggle("no-write", !!sn.nowrite);
       pos.x = sn.pos.x; pos.y = sn.pos.y; render();
@@ -537,7 +561,8 @@
         const top = scrollY + 90, bottom = scrollY + innerHeight - 80, left = OX() + 30, right = OX() + innerWidth - 60;
         if (pos.y < top || pos.y > bottom || pos.x < left || pos.x > right) { pos.y = clamp(pos.y, top, bottom); pos.x = clamp(pos.x, left, right); lastX = pos.x; lastY = pos.y; render(); }
       },
-      apply, snapshot, applySnapshot, ringAt, anchor, reflow,
+      apply, snapshot, applySnapshot, ringAt, anchor, reflow, rewind, get marks() { return marks; },
+      rectOf,
     };
   }
   window.Host = Host;

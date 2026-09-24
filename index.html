@@ -37,6 +37,7 @@
 
     <!-- ask the host -->
     <div class="ask" id="ask" hidden>
+      <p class="hand ask-q" data-ask-q hidden></p>
       <div class="ask-chips" data-ask-chips></div>
       <form class="ask-form" data-ask-form>
         <input class="ask-input hand" type="text" maxlength="60" autocomplete="off" placeholder="say something to Adham…" data-ask-input aria-label="Say something to the host" />
@@ -88,8 +89,15 @@
         <div class="plates"></div>
       </section>
 
+      <section id="machine" class="machine">
+        <p class="label mono">(03) — The machine</p>
+        <p class="machine-lede" data-machine-lede></p>
+        <div class="gauges" data-gauges></div>
+        <p class="mono muted machine-status" data-machine-status>&nbsp;</p>
+      </section>
+
       <section id="contact" class="contact">
-        <p class="label mono">(03) — Contact</p>
+        <p class="label mono">(04) — Contact</p>
         <h2 class="contact-title"><span class="line"><span>Say hello.</span></span></h2>
         <p class="contact-line"><a class="contact-link" data-contact><span data-contact-text></span></a></p>
         <p class="muted contact-sub">Or find me on <a href="https://github.com/adhammomen" data-github>GitHub</a>.</p>
@@ -101,6 +109,15 @@
     </main>
 
     <span class="rule" data-rule style="margin:0 var(--pad)"></span>
+    <!-- rewind: drag to un-draw the page. the ticks are the real commits of this site -->
+    <div class="rewind" data-rewind-wrap>
+      <label class="mono muted" for="rewind">Rewind</label>
+      <div class="rewind-track">
+        <div class="rewind-ticks" data-ticks aria-hidden="true"></div>
+        <input id="rewind" class="rewind-range" type="range" min="0" max="1000" value="1000" step="1" aria-label="Rewind the page" data-rewind />
+      </div>
+      <p class="hand rewind-say" data-rewind-say>&nbsp;</p>
+    </div>
     <footer class="footer mono">
       <span>© <span data-year></span> <span data-bind="name"></span></span>
       <span class="muted">Handwriting mine. Cursor mine. Bugs mine.</span>
@@ -129,6 +146,7 @@
     <script src="assets/vendor/lenis.min.js"></script>
     <script src="assets/projects.js"></script>
     <script src="assets/name-path.js"></script>
+    <script src="assets/history.js"></script>
     <script src="assets/host.js"></script>
     <script src="assets/main.js"></script>
   </body>

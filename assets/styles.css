@@ -264,3 +264,40 @@ html.screen-space .guest { margin-top: 24px; }
 html.screen-space .plate::after { content: "drag me into the other window"; }
 html.second .window-btn, html.second [data-tour], html.second [data-sound] { display: none; }
 html.screen-space .contact-title { font-size: min(calc(var(--pw) * 0.12), calc(var(--ph) * 0.3)); }
+
+/* ---------------------------------------------------------------- the interview */
+.ask-q { margin: 0 auto 4px; text-align: center; font-size: 22px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 6px 14px; width: max-content; max-width: 100%; }
+.ask.interview .ask-form { display: none; }
+.ask.interview .ask-chips button { font-size: 15px; padding: 10px 16px; border-width: 1.5px; }
+
+/* ---------------------------------------------------------------- handoff: what earlier visitors left */
+.past { opacity: .5; }
+.you-stroke.past { stroke: var(--muted); }
+
+/* ---------------------------------------------------------------- rewind */
+.rewind { padding: 28px var(--pad) 8px; display: grid; grid-template-columns: auto 1fr; gap: 6px 20px; align-items: center; }
+.rewind-track { position: relative; padding: 10px 0; }
+.rewind-ticks { position: absolute; left: 0; right: 0; top: 0; height: 8px; }
+.rewind-ticks span { position: absolute; top: 0; width: 1px; height: 8px; background: var(--muted); opacity: .5; transform: translateX(-.5px); }
+.rewind-ticks span.on { background: var(--pen); opacity: 1; height: 12px; width: 2px; }
+.rewind-range { -webkit-appearance: none; appearance: none; width: 100%; height: 2px; margin: 0; background: var(--ink); cursor: ew-resize; display: block; }
+.rewind-range::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--paper); border: 2px solid var(--pen); cursor: ew-resize; }
+.rewind-range::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--paper); border: 2px solid var(--pen); cursor: ew-resize; }
+.rewind-say { grid-column: 2; margin: 0; min-height: 1.2em; font-size: 20px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 899px) { .rewind { grid-template-columns: 1fr; } .rewind-say { grid-column: 1; } }
+
+/* ---------------------------------------------------------------- the machine */
+.machine { padding: calc(var(--ph, 100svh) * 0.08) var(--pad) calc(var(--ph, 100svh) * 0.06); }
+.machine-lede { margin: 0 0 32px; font-size: clamp(22px, calc(var(--pw, 100vw) * 0.026), 40px); line-height: 1.15; letter-spacing: -0.02em; max-width: 30ch; font-variation-settings: "wdth" 92, "opsz" 96; }
+.gauges { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; max-width: 980px; }
+.gauge { position: relative; border: 1px solid var(--line); border-radius: 12px; padding: 12px 12px 10px; }
+.gauge-svg { display: block; width: 100%; aspect-ratio: 200 / 130; overflow: visible; }
+.gauge-svg .stroke { stroke-width: 2.4; }
+.gauge-svg .needle { stroke: var(--ink); }
+.gauge-label { display: block; margin-top: 6px; }
+.machine-status { margin: 18px 0 0; }
+@media (max-width: 899px) { .gauges { grid-template-columns: repeat(2, 1fr); gap: 12px; } .machine-lede { margin-bottom: 20px; } }
+html.screen-space .machine { display: grid; grid-template-columns: 1fr 1.2fr; column-gap: calc(var(--pw) * 0.06); align-items: start; }
+html.screen-space .machine .label { grid-column: 1 / -1; }
+html.screen-space .gauges { max-width: none; }
+html.screen-space .machine-status { grid-column: 2; }

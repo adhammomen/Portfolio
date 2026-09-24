@@ -69,6 +69,41 @@ window.PORTFOLIO = {
     bye: "thanks for coming by.",
     askNote: "leave me a note before you go?",
     thanks: ["nice.", "that's going on the fridge.", "noted. literally."],
+    // the interview: two questions on arrival. the answers change the tour and draft the email
+    interview: {
+      who: { q: "quick one — who am I talking to?", options: [
+        { key: "recruiter", label: "I'm hiring", say: "ok. work first, then how to reach me." },
+        { key: "dev", label: "I'm a developer", say: "then you'll want the sketches. and the source." },
+        { key: "client", label: "I need something built", say: "good. let me show you what I build." },
+        { key: "curious", label: "just looking", say: "fair. look around." },
+      ] },
+      time: { q: "and how long have you got?", options: [
+        { key: "short", label: "30 seconds", say: "fine. the short version." },
+        { key: "some", label: "a few minutes", say: "enough." },
+        { key: "all", label: "all of it", say: "ok. then I'll tell you everything." },
+      ] },
+      skipped: "no answer? fine, the usual tour.",
+      shortTour: ["best thing I've made:", "and this is where you find me. done."],
+      drafted: "I wrote you a draft. it's behind that link.",
+      notes: { recruiter: "start here.", dev: "no framework. read the source.", client: "this is the kind of thing I'd build you.", curious: "" },
+      drafts: {
+        recruiter: { subject: "Hi Adham — about a role", body: "Hi Adham,\n\nI saw your portfolio and I'm hiring for ...\n\nThe role: ...\nWhere / remote: ...\n\nAre you open to a chat this week?\n" },
+        dev: { subject: "Hi Adham — fellow developer", body: "Hi Adham,\n\nSaw the site. The bit I liked: ...\n\nQuestion: ...\n" },
+        client: { subject: "Hi Adham — I need something built", body: "Hi Adham,\n\nWhat I need built: ...\nWhen: ...\nBudget (rough): ...\n\nCan we talk?\n" },
+        curious: { subject: "Hi Adham", body: "Hi Adham,\n\n...\n" },
+      },
+    },
+    // rewind: the slider at the bottom un-draws the page, then it draws itself back
+    rewindLines: ["careful, that's my handwriting.", "un-doing me?", "ok, and back."],
+    rewound: "and back.",
+    // handoff: what earlier visitors left on the page
+    someoneWasHere: "someone was here before you.",
+    theyLeft: "they left that.",
+    // the machine: the server this page lives on
+    machineIntro: "this is the box.",
+    machineLive: "alive. as of {time}.",
+    machineOffline: "the machine's asleep. it does that. last seen {time}.",
+    machineNever: "can't reach the box from here.",
     // things the visitor can ask, and what the host does
     asks: [
       { label: "show me your best work", say: "this one.", action: "best" },
@@ -88,6 +123,22 @@ window.PORTFOLIO = {
       [["bye", "later"], "see you.", null],
     ],
     fallback: ["ask me about a project, or how to reach me.", "try 'ordium'.", "I only know a few words. try 'contact'."],
+  },
+  // handoff: visitors' pen marks and notes stay on the page for the next visitor.
+  // url: an endpoint that stores them (server/host-server.js). empty: this browser only.
+  handoff: { url: "" },
+  // the machine: live vitals of the server this page runs on (server/host-server.js writes them).
+  // url: a JSON endpoint or a static file the server keeps fresh.
+  machine: {
+    url: "assets/vitals.json",
+    name: "ordium",
+    lede: "Everything here is served from one box I keep alive myself. This is it.",
+    gauges: [
+      { key: "uptime", label: "up for" },
+      { key: "load", label: "load" },
+      { key: "mem", label: "memory" },
+      { key: "disk", label: "disk" },
+    ],
   },
   projects: [
     {

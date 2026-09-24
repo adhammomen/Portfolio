@@ -168,7 +168,7 @@
 
   // ------------------------------------------------------------------ the host
   const askEl = $("#ask");
-  function closeAsk() { askEl.hidden = true; }
+  function closeAsk() { if (interviewing) return; askEl.hidden = true; }
   if (!hasGsap) { $("#host").remove(); askEl.remove(); return; }
   gsap.registerPlugin(ScrollTrigger);
   if (lenis) { lenis.on("scroll", ScrollTrigger.update); gsap.ticker.add((t) => lenis.raf(t * 1000)); gsap.ticker.lagSmoothing(0); }
@@ -209,6 +209,8 @@
 
   // beats: each fires once, when its section comes into view, unless the host is parked
   const done = new Set();
+  const lingerNotes = new Map(); // plate index -> how many notes written
+  D.projects.forEach((_, i) => lingerNotes.set(i, 1));
   function beat(key, trigger, start, fn) {
     if (!leader) return;
     ScrollTrigger.create({
@@ -258,12 +260,74 @@
       await host.underline(tag);
       await host.wait(300);
       const r = tag.getBoundingClientRect();
-      await host.moveTo(r.left + OX() + r.width + 60, r.top + scrollY);
+      await host.moveTo(Math.min(r.left + r.width + 60, innerWidth - 50) + OX(), r.top + scrollY);
       host.anchor(host.stroke(`M${host.pos.x} ${host.pos.y + 20} q10 40 -6 80 M${host.pos.x - 6} ${host.pos.y + 100} l-10 -16 M${host.pos.x - 6} ${host.pos.y + 100} l14 -12`, { ms: 500 }), tag);
       await host.wait(400);
+      if (!memory.who) await interview();
     }
   }
   if (leader) host.run(intro);
+
+  // ------------------------------------------------------------------ the interview
+  // two questions on arrival. the answers reorder the tour, change the margin notes and draft the email.
+  const plan = { who: memory.who || null, time: memory.time || null };
+  const askQ = $("[data-ask-q]");
+  let interviewing = false;
+  function askChoice(spec) {
+    return new Promise(async (res) => {
+      interviewing = true;
+      // stand where the bubble won't sit on the chips
+      if (host.pos.y - scrollY > innerHeight * 0.55) await host.moveTo(host.pos.x, scrollY + innerHeight * 0.42, 500);
+      host.speak(spec.q, 30000);
+      const t = setTimeout(show, Math.min(1800, 500 + spec.q.length * 45));
+      let timer = 0;
+      // the visitor scrolled off: drop the question, no hard feelings
+      const y0 = scrollY;
+      const onScroll = () => { if (Math.abs(scrollY - y0) > innerHeight * 0.6) finish("scrolled"); };
+      addEventListener("scroll", onScroll, { passive: true });
+      function finish(key) { clearTimeout(timer); removeEventListener("scroll", onScroll); interviewing = false; askEl.classList.remove("interview"); askQ.hidden = true; buildChips(); closeAsk(); host.hush(); res(key); }
+      function show() {
+        chips.replaceChildren();
+        spec.options.forEach((o) => { const b = document.createElement("button"); b.type = "button"; b.textContent = o.label; b.addEventListener("click", () => finish(o.key)); chips.append(b); });
+        askQ.textContent = spec.q; askQ.hidden = fine; askEl.classList.add("interview"); askEl.hidden = false;
+        timer = setTimeout(() => finish(null), 24000);
+      }
+      void t;
+    });
+  }
+  async function interview() {
+    const I = D.host.interview; if (!I) return;
+    const who = await askChoice(I.who);
+    if (who === "scrolled") return;
+    if (who == null) { await host.speak(I.skipped, 1400); return; }
+    plan.who = who; remember({ who });
+    await host.speak(I.who.options.find((o) => o.key === who).say, 1400);
+    const time = await askChoice(I.time);
+    if (time == null || time === "scrolled") return;
+    plan.time = time; remember({ time });
+    await host.speak(I.time.options.find((o) => o.key === time).say, 1200);
+    applyPlan();
+    if (time === "short") await shortTour();
+  }
+  function applyPlan() {
+    const I = D.host.interview; if (!I) return;
+    if (D.links.email && plan.who && I.drafts[plan.who]) { const d = I.drafts[plan.who]; contact.href = `mailto:${D.links.email}?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`; }
+  }
+  applyPlan();
+  async function shortTour() {
+    const I = D.host.interview;
+    ["about", "typo", ...D.projects.map((_, i) => `plate${i}`)].forEach((k) => done.add(k));
+    await host.speak(I.shortTour[0], 1200);
+    await act("best");
+    await host.wait(3200);
+    closeSheet(false); await host.wait(500);
+    await host.speak(I.shortTour[1], 1400);
+    done.add("contact");
+    await host.scrollTo($(".contact-title"), 0.15);
+    await host.circle($(".contact-link"));
+    if (plan.who && D.links.email) await host.speak(I.drafted, 2000);
+    remember({ finished: true });
+  }
 
   // about: circle a phrase, note next to the caps
   beat("about", ".manifesto", "top 70%", async () => {
@@ -297,7 +361,14 @@
       const title = $(".plate-title span", plateEls[i]);
       if (i === 0) await host.underline(title);
       const note0 = (p.notes && p.notes[0]) || p.note;
-      if (note0) await host.writeNear(innerWidth >= 900 ? title : $(".plate-desc", plateEls[i]), note0, innerWidth >= 900 ? "right" : "below");
+      const wide = innerWidth >= 900, near = wide ? title : $(".plate-desc", plateEls[i]), side = wide ? "right" : "below";
+      let stack = 0;
+      if (note0) { await host.writeNear(near, note0, side, stack++); }
+      // what the interview said: a line for the project that matters to this visitor
+      const I = D.host.interview;
+      const mine = plan.who && I && I.notes[plan.who] && (plan.who === "dev" ? !!p.repo : !!p.best);
+      if (mine) { await host.wait(300); await host.writeNear(near, I.notes[plan.who], side, stack++); }
+      if (plan.time === "all" && p.notes) { for (const extra of p.notes.slice(1)) { await host.wait(300); await host.writeNear(near, extra, side, stack++); } lingerNotes.set(i, p.notes.length); }
       if (p.doodle) { const r = title.getBoundingClientRect(); await host.doodle(p.doodle, r.left + OX() - 40, r.top + scrollY + r.height / 2 - 6, undefined, title); }
       if (i === 0 && !returning) {
         await host.wait(600);
@@ -312,6 +383,7 @@
   beat("contact", ".contact-title", "top 70%", async () => {
     await host.speak(D.host.contact, 1400);
     await host.circle($(".contact-link"));
+    if (plan.who && D.links.email) await host.speak(D.host.interview.drafted, 2000);
     await host.wait(300);
     await host.speak(D.host.askNote, 2000);
     await host.pointAt($("#guest-input"));
@@ -322,8 +394,6 @@
   });
 
   // ------------------------------------------------------------------ attention: the host watches what you look at
-  const lingerNotes = new Map(); // plate index -> how many notes written
-  D.projects.forEach((_, i) => lingerNotes.set(i, 1));
   function watch(el, onLinger, ms) {
     let t = 0;
     const start = () => { clearTimeout(t); t = setTimeout(onLinger, ms); };
@@ -423,7 +493,7 @@
   const chips = $("[data-ask-chips]"), askForm = $("[data-ask-form]"), askInput = $("[data-ask-input]");
   function openAsk() { askEl.hidden = false; askInput.focus(); }
   $("[data-ask-open]").addEventListener("click", () => (askEl.hidden ? openAsk() : closeAsk()));
-  document.addEventListener("click", (e) => { if (!askEl.hidden && !e.target.closest("#ask, [data-ask-open]")) closeAsk(); });
+  document.addEventListener("click", (e) => { if (!askEl.hidden && !interviewing && !e.target.closest("#ask, [data-ask-open]")) closeAsk(); });
   async function act(action) {
     if (!action) return;
     if (!leader) { post({ t: "act", action }); return; }
@@ -440,11 +510,15 @@
     const m = /^project:(\d+)$/.exec(action);
     if (m) { const i = +m[1]; await host.scrollTo(plateEls[i], 0.25); await host.click(plateEls[i]); }
   }
-  D.host.asks.forEach((a) => {
-    const b = document.createElement("button"); b.type = "button"; b.textContent = a.label;
-    b.addEventListener("click", () => { closeAsk(); if (!leader) { post({ t: "act", action: a.action, say: a.say }); return; } host.run(async () => { await host.speak(a.say, 1200); await act(a.action); }, { priority: true, interrupt: true }); });
-    chips.append(b);
-  });
+  function buildChips() {
+    chips.replaceChildren();
+    D.host.asks.forEach((a) => {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = a.label;
+      b.addEventListener("click", () => { closeAsk(); if (!leader) { post({ t: "act", action: a.action, say: a.say }); return; } host.run(async () => { await host.speak(a.say, 1200); await act(a.action); }, { priority: true, interrupt: true }); });
+      chips.append(b);
+    });
+  }
+  buildChips();
   function reply(q) {
     if (!leader) { post({ t: "ask", q }); return; }
     const hit = D.host.replies.find(([keys]) => keys.some((k) => q.includes(k)));
@@ -521,6 +595,7 @@
     host.anchor(path, near);
     post({ t: "you", d: path.getAttribute("d"), near: near.id || near.tagName });
     if (pts.length < 8) return;
+    saveMark({ kind: "stroke", d: path.getAttribute("d"), near: near.id || "page", r: host.rectOf(near) });
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
     const box = { l: Math.min(...xs), r: Math.max(...xs), t: Math.min(...ys), b: Math.max(...ys) };
     const diag = Math.hypot(box.r - box.l, box.b - box.t);
@@ -554,17 +629,47 @@
       await host.doodle("heart", nr.right + 22, nr.top + scrollY + nr.height / 2);
       await host.speak(pick(D.host.thanks), 1800);
       const notes = [...(memory.notes || []), text].slice(-5); remember({ notes });
+      saveMark({ kind: "note", text, x: parseFloat(n.style.left), y: parseFloat(n.style.top), near: "contact", r: host.rectOf($("#contact")) });
     }, { priority: true, interrupt: true });
   }
-  // notes from earlier visits come back
-  if (memory.notes && memory.notes.length) {
-    const r = guest.getBoundingClientRect();
-    memory.notes.slice(-3).forEach((t, i) => {
-      const n = document.createElement("span"); n.className = "hand note guest-note"; n.textContent = t;
-      n.style.left = r.left + OX() + 20 + "px"; n.style.top = r.top + scrollY + r.height + 24 + i * 36 + "px"; n.style.transform = "rotate(-2deg)";
-      pageEl.append(n); host.anchor(n, guest);
-    });
+  // ------------------------------------------------------------------ handoff: the page remembers its visitors
+  // pen marks and notes are kept (on the server in D.handoff.url, and in this browser) and come back for the next visitor
+  const HAND = D.handoff || {}, HKEY = "host.marks";
+  const localMarks = () => { try { return JSON.parse(localStorage.getItem(HKEY) || "[]"); } catch (_) { return []; } };
+  function saveMark(mark) {
+    try { localStorage.setItem(HKEY, JSON.stringify([...localMarks(), mark].slice(-40))); } catch (_) {}
+    if (HAND.url) fetch(HAND.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(mark) }).catch(() => {});
   }
+  function showPast(marks) {
+    const els = [];
+    marks.forEach((m) => {
+      const near = (m.near && $("#" + CSS.escape(m.near))) || pageEl; if (!m.r) return;
+      if (m.kind === "stroke" && m.d) {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); path.setAttribute("class", "stroke you-stroke past"); path.setAttribute("d", m.d);
+        inkLayer.append(path); host.anchor(path, near, m.r); els.push(path);
+      } else if (m.kind === "note" && m.text) {
+        const n = document.createElement("span"); n.className = "hand note guest-note past"; n.textContent = m.text;
+        n.style.left = m.x + "px"; n.style.top = m.y + "px"; n.style.transform = "rotate(-2deg)";
+        pageEl.append(n); host.anchor(n, near, m.r); els.push(n);
+      }
+    });
+    host.reflow();
+    return els;
+  }
+  (async () => {
+    let marks = localMarks();
+    if (HAND.url) { try { const r = await fetch(HAND.url, { cache: "no-store" }); const j = await r.json(); marks = [...(j.marks || []), ...marks]; } catch (_) {} }
+    const els = showPast(marks.slice(-60));
+    if (!els.length || !leader) return;
+    // the host notices the first of them you come across
+    let said = false;
+    const io = new IntersectionObserver((entries) => {
+      const hit = entries.find((e) => e.isIntersecting); if (!hit || said || !tourOn) return;
+      said = true; io.disconnect();
+      host.run(async () => { await host.speak(D.host.someoneWasHere, 1500); await host.pointAt(hit.target); await host.speak(D.host.theyLeft, 1200); });
+    }, { threshold: 0.5 });
+    els.forEach((el) => io.observe(el));
+  })();
 
   // sound + tour toggles
   const soundBtn = $("[data-sound]");
@@ -581,6 +686,101 @@
     if (!tourOn) { host.quip(D.host.solo, 3000); await host.park(); }
     else { host.parked = false; host.run(async () => { await host.moveTo(OX() + innerWidth * 0.5, scrollY + innerHeight * 0.5); await host.wave(); await host.speak(D.host.back, 900); }); }
   });
+
+  // ------------------------------------------------------------------ rewind: the page un-draws, then draws itself back
+  const rw = $("[data-rewind]"), rwSay = $("[data-rewind-say]"), ticksEl = $("[data-ticks]");
+  const H = (window.HISTORY && window.HISTORY.commits) || [];
+  H.forEach((c, i) => { const t = document.createElement("span"); t.style.left = (H.length > 1 ? (i / (H.length - 1)) * 100 : 100) + "%"; t.title = `${c.date} ${c.msg}`; ticksEl.append(t); });
+  const commitAt = (v) => H[Math.round(v * (H.length - 1))];
+  const showCommit = (v) => { const c = commitAt(v); rwSay.textContent = c ? `${c.date} — ${c.msg}` : "\u00a0"; ticksEl.querySelectorAll("span").forEach((t, i) => t.classList.toggle("on", H[i] === c)); };
+  showCommit(1);
+  let rwQuipped = false, rwWatching = false, rwReleased = true, rwDone = null, rwTween = null;
+  function rewindTo(v, fromPeer) {
+    host.rewind(v); showCommit(v);
+    if (!fromPeer) post({ t: "rewind", v });
+  }
+  rw.addEventListener("input", () => {
+    if (rwTween) { rwTween.kill(); rwTween = null; }
+    rwReleased = false;
+    rewindTo(rw.value / 1000);
+    if (!rwWatching && leader) {
+      // the host comes over and watches you do it
+      rwWatching = true;
+      host.run(async () => {
+        const r = host.rectOf(rw); await host.moveTo(r.x + r.w + 24, r.cy, 500);
+        if (!rwQuipped) { rwQuipped = true; host.quip(pick(D.host.rewindLines), 2200); }
+        if (!rwReleased) await new Promise((res) => (rwDone = res));
+        rwWatching = false; rwDone = null;
+      }, { priority: true, interrupt: true });
+    }
+  });
+  rw.addEventListener("change", () => {
+    const o = { v: rw.value / 1000 };
+    rwTween = gsap.to(o, { v: 1, duration: 1 + (1 - o.v) * 1.6, ease: "power2.inOut", onUpdate: () => { rw.value = Math.round(o.v * 1000); rewindTo(o.v); }, onComplete: () => { rwTween = null; rwReleased = true; if (rwDone) rwDone(); if (leader) host.quip(D.host.rewound, 1200); } });
+  });
+
+  // ------------------------------------------------------------------ the machine: live vitals of the box this page lives on
+  const M = D.machine;
+  const gaugeEls = [];
+  if (M) {
+    $("[data-machine-lede]").textContent = M.lede;
+    const gw = $("[data-gauges]");
+    M.gauges.forEach((g, i) => {
+      const d = document.createElement("div"); d.className = "gauge";
+      d.innerHTML = `<svg id="g-${i}" class="gauge-svg" viewBox="0 0 200 130" aria-hidden="true"></svg><span class="mono muted gauge-label">${g.label}</span>`;
+      gw.append(d); gaugeEls.push({ ...g, el: d, svg: $("svg", d), needle: null, note: null });
+    });
+  }
+  const VKEY = "host.vitals";
+  let vit = null; try { vit = JSON.parse(localStorage.getItem(VKEY) || "null"); } catch (_) {}
+  let vitLive = false;
+  async function fetchVitals() {
+    if (!M || !M.url) return false;
+    try {
+      const r = await fetch(M.url + (M.url.includes("?") ? "&" : "?") + "t=" + Date.now(), { cache: "no-store" }); if (!r.ok) throw new Error(r.status);
+      vit = await r.json(); vitLive = true; try { localStorage.setItem(VKEY, JSON.stringify(vit)); } catch (_) {}
+    } catch (_) { vitLive = false; }
+    return vitLive;
+  }
+  const fmtUp = (s) => { const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60); return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`; };
+  function gaugeValue(key) {
+    if (!vit) return { text: "—", f: 0 };
+    if (key === "uptime") return { text: fmtUp(vit.uptime_s || 0), f: Math.min(1, (vit.uptime_s || 0) / (30 * 86400)) };
+    if (key === "load") return { text: `${vit.load1 ?? "—"} / ${vit.cpus || "?"}`, f: vit.cpus ? Math.min(1, (vit.load1 || 0) / vit.cpus) : 0 };
+    if (key === "mem") return { text: vit.mem_total_mb ? `${(vit.mem_used_mb / 1024).toFixed(1)} of ${(vit.mem_total_mb / 1024).toFixed(0)} GB` : "—", f: vit.mem_total_mb ? vit.mem_used_mb / vit.mem_total_mb : 0 };
+    if (key === "disk") return { text: vit.disk_pct != null ? `${vit.disk_pct}% full` : "—", f: (vit.disk_pct || 0) / 100 };
+    if (key === "temp") return { text: vit.temp_c != null ? `${vit.temp_c}°C` : "—", f: Math.min(1, (vit.temp_c || 0) / 90) };
+    return { text: "—", f: 0 };
+  }
+  const needleD = (f) => { const a = Math.PI + f * Math.PI, x = 100 + Math.cos(a) * 66, y = 112 + Math.sin(a) * 66; return `M100 112 L${x.toFixed(1)} ${y.toFixed(1)}`; };
+  const timeOf = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).toLowerCase(); } catch (_) { return "?"; } };
+  function machineStatus() {
+    const st = $("[data-machine-status]"); if (!st) return;
+    if (!vit) { st.textContent = "no signal"; return; }
+    st.textContent = `${vit.host || M.name} · ${vit.platform || ""} · ${vitLive ? "as of" : "last seen"} ${timeOf(vit.at)}${vit.at ? " · " + new Date(vit.at).toLocaleDateString() : ""}`;
+  }
+  let gaugesDrawn = false;
+  if (M) beat("machine", "#machine", "top 70%", async () => {
+    await fetchVitals(); machineStatus();
+    await host.speak(D.host.machineIntro, 1200);
+    for (const g of gaugeEls) {
+      const arc = host.stroke("M22 112 A78 78 0 0 1 178 112", { ms: 520, into: g.svg, width: 2.4 }); if (!arc) return;
+      await host.drawPath(arc, 520);
+      const v = gaugeValue(g.key);
+      g.needle = host.stroke(needleD(v.f), { ms: 260, into: g.svg, width: 3 }); if (!g.needle) return; g.needle.classList.add("needle");
+      await host.drawPath(g.needle, 260);
+      const r = host.rectOf(g.svg);
+      g.note = await host.note(v.text, r.x + r.w * 0.5 - 30, r.y + r.h * 0.62, { rotate: -2, size: "22px", anchor: g.svg });
+    }
+    gaugesDrawn = true;
+    await host.wait(200);
+    await host.speak(!vit ? D.host.machineNever : (vitLive ? D.host.machineLive : D.host.machineOffline).replace("{time}", timeOf(vit.at)), 2200);
+  });
+  setInterval(async () => {
+    if (!M || !gaugesDrawn || !leader) return;
+    await fetchVitals(); machineStatus();
+    gaugeEls.forEach((g) => { const v = gaugeValue(g.key); if (g.needle) gsap.to(g.needle, { attr: { d: needleD(v.f) }, duration: 1.2, ease: "power2.out" }); if (g.note && g.note.textContent !== v.text) g.note.textContent = v.text; });
+  }, 30000);
 
   // ------------------------------------------------------------------ windows
   const secondBtn = $("[data-second]");
@@ -616,6 +816,7 @@
         await host.speak(pick(D.host.otherWindow), 1800);
         if (fine) await host.speak(D.host.dragHint, 2200);
         await host.moveTo(back.x, back.y, 1200);
+        host.keepOnScreen();
       }, { priority: true });
     });
     S.listen("bye", () => { if (leader) host.run(async () => { host.keepOnScreen(); await host.speak(D.host.windowGone, 1400); }, { priority: true, interrupt: true }); });
@@ -638,11 +839,13 @@
         else if (m.t === "drew") host.run(async () => { await host.moveTo(m.box.r + 24, m.box.b + 10, 500); await host.speak(pick(m.onNote ? D.host.scribbled : D.host.drew), 1300); }, { priority: true, interrupt: true });
         else if (m.t === "you") { const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); path.setAttribute("class", "stroke you-stroke"); path.setAttribute("d", m.d); inkLayer.append(path); host.anchor(path, $("#" + m.near) || pageEl); }
         else if (m.t === "focus") host.quip(D.host.alreadyTwo, 1600);
+        else if (m.t === "rewind") rewindTo(m.v, true);
       } else {
         if (m.t === "snap") { host.applySnapshot(m); if (root.classList.contains("no-write")) {} }
         else if (m.t === "sheet") { if (m.open) showSheet(m.i); else closeSheet(false); }
         else if (m.t === "you") { const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); path.setAttribute("class", "stroke you-stroke"); path.setAttribute("d", m.d); inkLayer.append(path); host.anchor(path, $("#" + m.near) || pageEl); }
         else if (m.t === "focus") host.quip(D.host.alreadyTwo, 1600);
+        else if (m.t === "rewind") rewindTo(m.v, true);
         else host.apply(m);
       }
     });
