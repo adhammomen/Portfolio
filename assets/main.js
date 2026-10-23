@@ -1,911 +1,209 @@
-(function () {
-  const D = window.PORTFOLIO;
-  const $ = (s, r = document) => r.querySelector(s);
-  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const fine = matchMedia("(pointer: fine)").matches;
-  const hasGsap = !!(window.gsap && window.ScrollTrigger);
-  const root = document.documentElement;
-  // windows: with two open, the page is pinned to the monitor. page x = client x + this window's offset
-  const S = window.SCREEN || null;
-  const OX = () => (S ? S.vx : 0);
-  const leader = !S || S.leader; // the first window runs the host; a second window mirrors it
-  const post = (m) => { if (S && S.multi) S.post(m); };
-  const pageEl = document.getElementById("page") || document.body;
-  const STATUS = { finished: "Complete", "in-progress": "In progress" };
-  const pick = (arr) => arr[(Math.random() * arr.length) | 0];
-  const STORE = "host.v1";
-  let memory = {}; try { memory = JSON.parse(localStorage.getItem(STORE) || "{}"); } catch (_) {}
-  const remember = (patch) => { Object.assign(memory, patch); try { localStorage.setItem(STORE, JSON.stringify(memory)); } catch (_) {} };
+import { CONTENT as C } from "./content.js";
+import { createScene } from "./scene.js";
 
-  // ------------------------------------------------------------------ content
-  const [first, ...rest] = D.name.split(/\s+/);
-  document.title = `${D.name} — ${D.role}`;
-  $$("[data-bind]").forEach((el) => (el.textContent = D[el.dataset.bind] || ""));
-  $$("[data-year]").forEach((el) => (el.textContent = new Date().getFullYear()));
-  $("[data-initials]").textContent = D.name.split(/\s+/).map((w) => w[0]).join("");
-  $("[data-first]").textContent = first;
-  $("[data-last]").textContent = rest.join(" ");
-  // the name as real glyph outlines, so the host can write it
-  const NP = window.NAME_PATHS;
-  const glyphPaths = [];
-  if (NP && NP.lines.length === 2) {
-    [$("[data-first]"), $("[data-last]")].forEach((span, li) => {
-      const line = NP.lines[li];
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("class", "name-svg"); svg.setAttribute("viewBox", `0 0 ${line.width} ${NP.height}`); svg.setAttribute("aria-hidden", "true");
-      line.glyphs.forEach((g) => { const p = document.createElementNS("http://www.w3.org/2000/svg", "path"); p.setAttribute("d", g.d); svg.append(p); glyphPaths.push(p); });
-      span.parentElement.append(svg);
-    });
-  } else root.classList.add("no-write");
-  $("[data-host-name]").textContent = first;
-  $("[data-host-first]").textContent = first;
-  $("[data-presence]").textContent = `${first} is here`;
-  $$("[data-github]").forEach((a) => (a.href = D.links.github));
-  const contact = $("[data-contact]");
-  contact.href = D.links.email ? `mailto:${D.links.email}` : D.links.github;
-  $("[data-contact-text]").textContent = D.links.email || D.links.github.replace(/^https?:\/\//, "");
-  if (!D.links.email) contact.target = "_blank";
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const root = document.documentElement;
+const fine = matchMedia("(pointer: fine)").matches;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const pad = (n, l = 2) => String(n).padStart(l, "0");
+root.classList.add("is-loading");
 
-  const man = $("[data-manifesto]");
-  D.manifesto.split(/\s+/).forEach((w) => { const s = document.createElement("span"); s.className = "w"; s.textContent = w; man.append(s, " "); });
-  const capsEl = $("[data-caps]");
-  const capEls = D.capabilities.map((c) => { const li = document.createElement("li"); li.textContent = typeof c === "string" ? c : c.name; capsEl.append(li); return li; });
+// ------------------------------------------------------------------ content
+$$("[data-name]").forEach((el) => (el.textContent = C.name));
+$$("[data-role]").forEach((el) => (el.textContent = C.role));
+$$("[data-location]").forEach((el) => (el.textContent = C.location));
+$$("[data-year]").forEach((el) => (el.textContent = new Date().getFullYear()));
+$("[data-hero-a]").textContent = C.hero.a; $("[data-hero-b]").textContent = C.hero.b; $("[data-hero-c]").textContent = C.hero.c;
+$$("[data-github]").forEach((a) => (a.href = C.github));
+const contact = $("[data-contact]");
+contact.href = C.email ? `mailto:${C.email}` : C.github;
+if (!C.email) { contact.target = "_blank"; contact.rel = "noopener"; }
+$("[data-contact-text]").textContent = C.email || C.github.replace(/^https?:\/\//, "");
 
-  $("[data-count]").textContent = String(D.projects.length).padStart(2, "0");
-  const plates = $(".plates");
-  const plateEls = D.projects.map((p, i) => {
-    const b = document.createElement("button");
-    b.className = "plate"; b.type = "button";
-    b.innerHTML = `<span class="plate-idx mono">${String(i + 1).padStart(2, "0")}</span>
-      <h3 class="plate-title"><span></span></h3>
-      <span class="plate-side mono"><span class="status ${p.status}">${STATUS[p.status] || p.status}</span><span>${p.year || ""}</span></span>
-      <p class="plate-desc"></p><span class="rule" data-rule></span>`;
-    $(".plate-title span", b).textContent = p.title;
-    $(".plate-desc", b).textContent = p.description;
-    plates.append(b);
-    return b;
-  });
+// the statement, one word per span so it can light up as you read
+const st = $("[data-statement]");
+C.statement.split(/\s+/).forEach((w, i, all) => { const s = document.createElement("span"); s.className = "w"; s.textContent = w; st.append(s, i < all.length - 1 ? " " : ""); });
 
-  // ------------------------------------------------------------------ sheet
-  // with two windows, a project opens in the *other* window (the reading room) and the host walks over
-  // to sketch it there. dropping a project into a window opens it right there.
-  const sheet = $("#sheet");
-  let sheetIdx = -1, sheetOpen = false, remoteSketching = -1;
-  function reportSketch() {
-    if (leader) return;
-    const p = D.projects[sheetIdx]; const sk = $("[data-sheet-sketch]", sheet);
-    if (!p || !p.sketch) { post({ t: "sketchAt", i: sheetIdx, box: null }); return; }
-    const r = sk.getBoundingClientRect();
-    post({ t: "sketchAt", i: sheetIdx, box: { x: r.left + OX(), y: r.top + scrollY, w: r.width, h: r.height } });
-  }
-  function fillSheet(i) {
-    const p = D.projects[i]; sheetIdx = i;
-    $("[data-sheet-idx]", sheet).textContent = `${String(i + 1).padStart(2, "0")} / ${String(D.projects.length).padStart(2, "0")}`;
-    $("[data-sheet-status]", sheet).textContent = STATUS[p.status] || p.status;
-    $("[data-sheet-year]", sheet).textContent = p.year || "";
-    $("[data-sheet-title]", sheet).textContent = p.title;
-    const note = (p.notes && p.notes[0]) || p.note;
-    $("[data-sheet-note]", sheet).textContent = note ? `“${note}”` : "";
-    $("[data-sheet-desc]", sheet).textContent = p.description;
-    const tags = $("[data-sheet-tags]", sheet); tags.replaceChildren();
-    (p.tags || []).forEach((t) => { const li = document.createElement("li"); li.textContent = t; tags.append(li); });
-    const links = $("[data-sheet-links]", sheet); links.replaceChildren();
-    if (p.demo) { const a = document.createElement("a"); a.href = p.demo; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Visit ↗"; links.append(a); }
-    if (p.repo) { const a = document.createElement("a"); a.href = p.repo; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Source ↗"; links.append(a); }
-    if (!p.demo && !p.repo) { const s = document.createElement("span"); s.textContent = "Links coming soon"; links.append(s); }
-    const sk = $("[data-sheet-sketch]", sheet); sk.replaceChildren(); sk.toggleAttribute("hidden", !p.sketch);
-    if (hasGsap && !reduce) gsap.from([".sheet-title", ".sheet-note", ".sheet-desc", ".sheet-tags", ".sheet-links"].map((s) => $(s, sheet)), { y: 24, opacity: 0, duration: 0.8, ease: "expo.out", stagger: 0.07 });
-    if (leader) { if (p.sketch && window.__host) window.__host.run(async () => { await window.__host.wait(700); await window.__host.sketch(sk, p.sketch); }, { priority: true, interrupt: true }); }
-    else setTimeout(reportSketch, 1100);
-  }
-  function openSheet(i, where) {
-    // where: "here" (a drop, or one window), "other" (the reading room)
-    if (!where) where = S && S.multi ? "other" : "here";
-    if (where === "other") {
-      if (!leader) { post({ t: "open", i }); return; }
-      post({ t: "sheet", open: true, i });
-      remember({ opened: [...new Set([...(memory.opened || []), i])] });
-      const o = S.other();
-      if (o) host.run(async () => { await host.speak(D.host.overThere, 1100); host.carry(D.projects[i].title); await host.moveTo(o.x + o.w * 0.5, o.y + o.h * 0.35, 1100); host.carry(""); }, { priority: true, interrupt: true });
-      return;
-    }
-    if (!leader) post({ t: "open", i, at: "me" }); else if (S && S.multi) post({ t: "sheet", open: false });
-    showSheet(i);
-  }
-  function showSheet(i) {
-    sheet.hidden = false; sheetOpen = true; fillSheet(i);
-    if (window.__host) window.__host.paper();
-    if (lenis) lenis.stop();
-    if (hasGsap && !reduce) {
-      gsap.fromTo(".sheet-scrim", { opacity: 0 }, { opacity: 1, duration: 0.5 });
-      gsap.fromTo(".sheet-panel", innerWidth >= 900 ? { xPercent: 100 } : { yPercent: 100 }, { xPercent: 0, yPercent: 0, duration: 0.9, ease: "expo.out" });
-    }
-    $("button[data-sheet-close]", sheet).focus();
-    remember({ opened: [...new Set([...(memory.opened || []), i])] });
-  }
-  let userClosedSheet = false;
-  function closeSheet(viaKeyboard) {
-    if (!sheetOpen) return; sheetOpen = false; userClosedSheet = true;
-    if (!leader) post({ t: "close" });
-    const done = () => { sheet.hidden = true; if (lenis) lenis.start(); if (viaKeyboard === true && plateEls[sheetIdx]) plateEls[sheetIdx].focus({ preventScroll: true }); };
-    if (hasGsap && !reduce) {
-      gsap.to(".sheet-scrim", { opacity: 0, duration: 0.4 });
-      gsap.to(".sheet-panel", { ...(innerWidth >= 900 ? { xPercent: 100 } : { yPercent: 100 }), duration: 0.6, ease: "expo.in", onComplete: done });
-    } else done();
-  }
-  plateEls.forEach((el, i) => el.addEventListener("click", () => openSheet(i)));
-  $$("[data-sheet-close]", sheet).forEach((b) => b.addEventListener("click", () => closeSheet(false)));
-  $("[data-sheet-prev]", sheet).addEventListener("click", () => fillSheet((sheetIdx - 1 + D.projects.length) % D.projects.length));
-  $("[data-sheet-next]", sheet).addEventListener("click", () => fillSheet((sheetIdx + 1) % D.projects.length));
-  // drag a project into another window: it opens there
-  plateEls.forEach((el, i) => {
-    el.draggable = true;
-    el.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", `project:${i}`); e.dataTransfer.effectAllowed = "copy"; el.classList.add("is-dragging"); });
-    el.addEventListener("dragend", () => el.classList.remove("is-dragging"));
-  });
-  document.addEventListener("dragover", (e) => { if (S && S.multi) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } });
-  document.addEventListener("drop", (e) => {
-    const m = /^project:(\d+)$/.exec(e.dataTransfer.getData("text/plain") || ""); if (!m) return;
-    e.preventDefault();
-    openSheet(+m[1], "here");
-    if (leader) host.run(async () => { await host.speak(D.host.dropped, 1200); }, { priority: true, interrupt: true });
-  });
-  addEventListener("keydown", (e) => { if (e.key === "Escape") { closeSheet(true); closeAsk(); } });
+// works
+const list = $("[data-works]");
+$("[data-count-works]").textContent = pad(C.projects.length);
+const rows = C.projects.map((p, i) => {
+  const li = document.createElement("li"); li.className = "work";
+  li.innerHTML = `<button class="work-btn" type="button"><span class="mono work-idx">${pad(i + 1)}</span><span class="work-title"></span><span class="mono work-kind"></span><span class="mono work-year"></span></button>`;
+  $(".work-title", li).textContent = p.title; $(".work-kind", li).textContent = p.kind; $(".work-year", li).textContent = p.year;
+  list.append(li);
+  return li;
+});
 
-  // ------------------------------------------------------------------ scroll
-  let lenis = null;
-  if (!reduce && window.Lenis) lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
-  const scrollPage = (y) => { if (lenis) lenis.scrollTo(y, { duration: 1.2 }); else window.scrollTo({ top: y, behavior: reduce ? "auto" : "smooth" }); };
-  if (S) S.applyScroll = (y) => { if (lenis) lenis.scrollTo(y, { immediate: true, force: true }); else window.scrollTo(0, y); };
-  $$('a[href^="#"]').forEach((a) =>
-    a.addEventListener("click", (e) => {
-      const t = $(a.getAttribute("href")); if (!t) return;
-      e.preventDefault();
-      scrollPage(t.getBoundingClientRect().top + scrollY - 80);
-    })
-  );
+// capabilities
+const caps = $("[data-caps]");
+C.capabilities.forEach((c) => { const d = document.createElement("div"); d.className = "cap"; d.innerHTML = `<h3></h3><ul></ul>`; $("h3", d).textContent = c.title; c.items.forEach((t) => { const li = document.createElement("li"); li.textContent = t; $("ul", d).append(li); }); caps.append(d); });
 
-  // ------------------------------------------------------------------ the host
-  const askEl = $("#ask");
-  function closeAsk() { if (interviewing) return; askEl.hidden = true; }
-  if (!hasGsap) { $("#host").remove(); askEl.remove(); return; }
-  gsap.registerPlugin(ScrollTrigger);
-  if (lenis) { lenis.on("scroll", ScrollTrigger.update); gsap.ticker.add((t) => lenis.raf(t * 1000)); gsap.ticker.lagSmoothing(0); }
+// clock: the visitor's own time
+const clock = $("[data-clock]");
+const tick = () => { clock.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); };
+tick(); setInterval(tick, 15000);
 
-  const host = Host({ ...D.host, mirror: !leader, scroller: scrollPage, onStatus: (st) => { $("[data-presence]").textContent = `${first} is here${st ? " · " + st : ""}`; } });
-  window.__host = host;
-  // the lamp follows the pointer; it's night when it's night for the visitor
-  const lamp = $(".lamp");
-  if (new Date().getHours() >= 20 || new Date().getHours() < 6) root.classList.add("night");
-  addEventListener("pointermove", (e) => { lamp.style.setProperty("--lx", e.clientX + "px"); lamp.style.setProperty("--ly", e.clientY + "px"); }, { passive: true });
-  const toasts = $("#toasts");
-  function toast(who, text, cls) {
-    const t = document.createElement("div"); t.className = "toast";
-    t.innerHTML = `<span class="avatar ${cls || ""}">${who[0]}</span><span>${who} ${text}</span>`;
-    toasts.append(t); setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 450); }, 2600);
-  }
-  if (leader) { setTimeout(() => toast("you", D.host.joined, "you"), 300); setTimeout(() => { toast(first, D.host.joined); host.chime(); }, 1100); }
-  else setTimeout(() => toast("you", D.host.secondJoined, "you"), 300);
-  try { console.log(`%c${D.host.console}`, "font: 600 16px 'Caveat', cursive; color: #1d4ed8"); } catch (_) {}
-  let tourOn = true;
-  const tourBtn = $("[data-tour]");
-  const words = $$(".w", man);
-  const visits = (memory.visits || 0) + 1;
-  const returning = visits > 1 && memory.reached;
-  remember({ visits, lastAt: Date.now() });
+// ------------------------------------------------------------------ the object
+let gl = null;
+try { gl = createScene($(".gl"), { lite: !fine || innerWidth < 820 }); } catch (e) { console.warn("WebGL unavailable", e); $(".gl").remove(); }
+const STATES = {
+  hero:    { x: 0.42, y: 0.08, s: 1.08, amp: 0.19, freq: 0.75, twist: 0.0, film: 0.85, dark: 0, spin: 1 },
+  about:   { x: 0.66, y: -0.15, s: 0.74, amp: 0.13, freq: 1.2, twist: 0.8, film: 0.95, dark: 0, spin: 0.6 },
+  works:   { x: 0.94, y: -0.05, s: 0.46, amp: 0.22, freq: 0.95, twist: 0.2, film: 1.0, dark: 0, spin: 1.4 },
+  caps:    { x: -0.72, y: 0.15, s: 0.46, amp: 0.11, freq: 1.6, twist: 1.4, film: 0.8, dark: 0, spin: 0.8 },
+  contact: { x: 0.36, y: 0.02, s: 1.15, amp: 0.26, freq: 0.7, twist: 0.0, film: 1.0, dark: 1, spin: 1.2 },
+  detail:  { x: 0.62, y: 0.0, s: 0.95, amp: 0.24, freq: 0.85, twist: 0.3, film: 1.0, dark: 0, spin: 1 },
+};
+const mobileX = { hero: 0.2, about: 0.35, works: 0.55, caps: -0.4, contact: 0.15, detail: 0.1 };
+const mobileY = { hero: 0.75, about: -1.0, works: -1.25, caps: 1.0, contact: -0.6, detail: 0.95 };
+const HUE = 0.55;
+let section = "hero", hoverHue = null, detailOpen = -1;
+function applyState() {
+  if (!gl) return;
+  const key = detailOpen > -1 ? "detail" : section;
+  const s = { ...STATES[key] };
+  if (innerWidth < 820) { s.x = mobileX[key]; s.y = mobileY[key]; s.s *= 0.85; }
+  s.hue = detailOpen > -1 ? C.projects[detailOpen].hue : hoverHue != null ? hoverHue : HUE + (key === "about" ? 0.12 : key === "caps" ? 0.3 : key === "contact" ? -0.1 : 0);
+  if (hoverHue != null && key === "works" && innerWidth >= 820) { s.x = 0.8; s.s = 0.62; s.amp = 0.28; s.film = 1.15; }
+  gl.set(s);
+}
+applyState();
 
-  const hour = new Date().getHours();
-  const greeting = hour < 5 || hour >= 22 ? D.host.greetings.night : hour < 12 ? D.host.greetings.morning : hour < 18 ? D.host.greetings.afternoon : D.host.greetings.evening;
-  // where the host actually is
-  let hereLine = "";
-  if (D.host.timezone) {
-    try {
-      const t = new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: D.host.timezone }).format(new Date());
-      const h = +new Intl.DateTimeFormat("en", { hour: "numeric", hour12: false, timeZone: D.host.timezone }).format(new Date());
-      hereLine = (h >= 23 || h < 6 ? D.host.lateHere : D.host.timeHere).replace("{time}", t.toLowerCase());
-    } catch (_) {}
-  }
+// ------------------------------------------------------------------ smooth scroll + section tracking
+let lenis = null;
+if (!reduce && window.Lenis) { lenis = new Lenis({ lerp: 0.085, smoothWheel: true }); }
+const hasGsap = !!(window.gsap && window.ScrollTrigger);
+if (hasGsap) gsap.registerPlugin(ScrollTrigger);
+if (lenis) { if (hasGsap) { lenis.on("scroll", ScrollTrigger.update); gsap.ticker.add((t) => lenis.raf(t * 1000)); gsap.ticker.lagSmoothing(0); } else { const raf = (t) => { lenis.raf(t); requestAnimationFrame(raf); }; requestAnimationFrame(raf); } }
+const scrollTo = (target) => { const el = typeof target === "string" ? $(target) : target; if (!el) return; if (lenis) lenis.scrollTo(el, { duration: 1.6 }); else el.scrollIntoView({ behavior: reduce ? "auto" : "smooth" }); };
+$$("[data-link]").forEach((a) => a.addEventListener("click", (e) => { const h = a.getAttribute("href"); if (!h || !h.startsWith("#")) return; e.preventDefault(); if (detailOpen > -1) closeDetail(); scrollTo(h); }));
 
-  // beats: each fires once, when its section comes into view, unless the host is parked
-  const done = new Set();
-  const lingerNotes = new Map(); // plate index -> how many notes written
-  D.projects.forEach((_, i) => lingerNotes.set(i, 1));
-  function beat(key, trigger, start, fn) {
-    if (!leader) return;
-    ScrollTrigger.create({
-      trigger, start,
-      onEnter: () => {
-        if (done.has(key) || !tourOn) return; done.add(key);
-        host.run(async () => {
-          const r = (typeof trigger === "string" ? $(trigger) : trigger).getBoundingClientRect();
-          if (r.bottom < -innerHeight * 0.5 || r.top > innerHeight * 1.5) return; // the visitor moved on
-          await fn();
-        });
-      },
-    });
-  }
+const sections = $$("[data-state]");
+function track() {
+  const mid = innerHeight * 0.5;
+  let cur = section;
+  for (const s of sections) { const r = s.getBoundingClientRect(); if (r.top <= mid && r.bottom > mid) { cur = s.dataset.state; break; } }
+  if (cur !== section) { section = cur; root.classList.toggle("dark", section === "contact"); applyState(); }
+  // light up the statement word by word as it passes the reading line
+  const words = st.children, r = st.getBoundingClientRect();
+  const p = Math.min(1, Math.max(0, (innerHeight * 0.8 - r.top) / (r.height + innerHeight * 0.35)));
+  const lit = Math.floor(p * words.length * 1.05);
+  for (let i = 0; i < words.length; i++) words[i].style.opacity = i < lit ? 1 : 0.14;
+}
+addEventListener("scroll", track, { passive: true });
+track();
 
-  // intro
-  async function writeName() {
-    if (!glyphPaths.length) return;
-    for (const p of glyphPaths) {
-      p.classList.add("pen");
-      const len = p.getTotalLength();
-      await host.drawPath(p, Math.min(900, Math.max(260, len / 9)));
-      p.classList.remove("pen"); p.classList.add("inked");
-    }
-  }
-  if (leader && (returning || reduce || !glyphPaths.length)) root.classList.add("no-write");
-  async function intro() {
-    await host.wait(reduce ? 200 : 700);
-    await host.moveTo(OX() + innerWidth * 0.62, scrollY + innerHeight * 0.38, 900);
-    await host.wave();
-    if (!returning && !reduce) {
-      await host.speak(D.host.intro[0], 700);
-      await writeName();
-      root.classList.add("no-write"); // whatever wasn't written (an interruption) shows now
-      await host.wait(300);
-    }
-    if (returning) {
-      await host.speak(D.host.returning[0], 1200);
-      const reached = D.projects[memory.reached - 1];
-      if (reached) await host.speak(`you got as far as ${reached.title} last time.`, 1800);
-      await host.speak(D.host.returning[1], 1600);
-    } else {
-      if (greeting) await host.speak(greeting, 900);
-      if (hereLine) await host.speak(hereLine, 1300);
-      await host.speak(D.host.intro[1], 1000);
-      const tag = $(".hero-tag");
-      await host.underline(tag);
-      await host.wait(300);
-      const r = tag.getBoundingClientRect();
-      await host.moveTo(Math.min(r.left + r.width + 60, innerWidth - 50) + OX(), r.top + scrollY);
-      host.anchor(host.stroke(`M${host.pos.x} ${host.pos.y + 20} q10 40 -6 80 M${host.pos.x - 6} ${host.pos.y + 100} l-10 -16 M${host.pos.x - 6} ${host.pos.y + 100} l14 -12`, { ms: 500 }), tag);
-      await host.wait(400);
-      if (!memory.who) await interview();
-      if (fine && S && !S.multi && !memory.usedTwo) {
-        await host.speak(D.host.secondHint, 2400);
-        const btn = $("[data-second]"); if (btn) { const r = btn.getBoundingClientRect(); await host.arrow(r.left + OX() - 140, r.top + scrollY + 90, btn); }
-      }
-    }
-  }
-  if (leader) host.run(intro);
-
-  // ------------------------------------------------------------------ the interview
-  // two questions on arrival. the answers reorder the tour, change the margin notes and draft the email.
-  const plan = { who: memory.who || null, time: memory.time || null };
-  const askQ = $("[data-ask-q]");
-  let interviewing = false;
-  function askChoice(spec) {
-    return new Promise(async (res) => {
-      interviewing = true;
-      // stand where the bubble won't sit on the chips
-      if (host.pos.y - scrollY > innerHeight * 0.55) await host.moveTo(host.pos.x, scrollY + innerHeight * 0.42, 500);
-      host.speak(spec.q, 30000);
-      const t = setTimeout(show, Math.min(1800, 500 + spec.q.length * 45));
-      let timer = 0;
-      // the visitor scrolled off: drop the question, no hard feelings
-      const y0 = scrollY;
-      const onScroll = () => { if (Math.abs(scrollY - y0) > innerHeight * 0.6) finish("scrolled"); };
-      addEventListener("scroll", onScroll, { passive: true });
-      function finish(key) { clearTimeout(timer); removeEventListener("scroll", onScroll); interviewing = false; askEl.classList.remove("interview"); askQ.hidden = true; buildChips(); closeAsk(); host.hush(); res(key); }
-      function show() {
-        chips.replaceChildren();
-        spec.options.forEach((o) => { const b = document.createElement("button"); b.type = "button"; b.textContent = o.label; b.addEventListener("click", () => finish(o.key)); chips.append(b); });
-        askQ.textContent = spec.q; askQ.hidden = fine; askEl.classList.add("interview"); askEl.hidden = false;
-        timer = setTimeout(() => finish(null), 24000);
-      }
-      void t;
-    });
-  }
-  async function interview() {
-    const I = D.host.interview; if (!I) return;
-    const who = await askChoice(I.who);
-    if (who === "scrolled") return;
-    if (who == null) { await host.speak(I.skipped, 1400); return; }
-    plan.who = who; remember({ who });
-    await host.speak(I.who.options.find((o) => o.key === who).say, 1400);
-    const time = await askChoice(I.time);
-    if (time == null || time === "scrolled") return;
-    plan.time = time; remember({ time });
-    await host.speak(I.time.options.find((o) => o.key === time).say, 1200);
-    applyPlan();
-    if (time === "short") await shortTour();
-  }
-  function applyPlan() {
-    const I = D.host.interview; if (!I) return;
-    if (D.links.email && plan.who && I.drafts[plan.who]) { const d = I.drafts[plan.who]; contact.href = `mailto:${D.links.email}?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`; }
-  }
-  applyPlan();
-  async function shortTour() {
-    const I = D.host.interview;
-    ["about", "typo", ...D.projects.map((_, i) => `plate${i}`)].forEach((k) => done.add(k));
-    await host.speak(I.shortTour[0], 1200);
-    await act("best");
-    await host.wait(3200);
-    closeSheet(false); await host.wait(500);
-    await host.speak(I.shortTour[1], 1400);
-    done.add("contact");
-    await host.scrollTo($(".contact-title"), 0.15);
-    await host.circle($(".contact-link"));
-    if (plan.who && D.links.email) await host.speak(I.drafted, 2000);
-    remember({ finished: true });
-  }
-
-  // about: circle a phrase, note next to the caps
-  beat("about", ".manifesto", "top 70%", async () => {
-    const target = words.find((w) => /workshop/i.test(w.textContent)) || words[Math.min(6, words.length - 1)];
-    await host.circle(target);
-    await host.wait(300);
-    await host.writeNear(capEls[capEls.length - 1], "the stuff I do", innerWidth >= 900 ? "right" : "below");
-  });
-
-  // the typo: the host notices its own mistake and fixes it in front of you
-  if (D.typo) {
-    const wrong = words.find((w) => w.textContent.replace(/[^\w]/g, "") === D.typo.wrong);
-    if (wrong) beat("typo", wrong, "top 88%", async () => {
-      await host.moveTo(wrong.getBoundingClientRect().right + OX() + 30, wrong.getBoundingClientRect().top + scrollY - 10, 500);
-      await host.wait(400);
-      await host.speak(D.host.typoLines[0], 700);
-      await host.strike(wrong);
-      const r = wrong.getBoundingClientRect();
-      const fs = parseFloat(getComputedStyle(wrong).fontSize);
-      await host.note(D.typo.right, r.left + OX() + 4, r.top + scrollY - fs * 0.62, { rotate: -3, size: fs * 0.55 + "px", anchor: wrong });
-      wrong.setAttribute("aria-label", D.typo.right); wrong.classList.add("fixed");
-      await host.speak(D.host.typoLines[1], 900);
-      if (D.host.status) { await host.wait(200); await host.speak(D.host.status, 1800); }
-    });
-  }
-
-  // work: walk the plates, a margin note + doodle each, open the first one
-  D.projects.forEach((p, i) => {
-    beat(`plate${i}`, plateEls[i], "top 72%", async () => {
-      remember({ reached: Math.max(memory.reached || 0, i + 1) });
-      const title = $(".plate-title span", plateEls[i]);
-      if (i === 0) await host.underline(title);
-      const note0 = (p.notes && p.notes[0]) || p.note;
-      const wide = innerWidth >= 900, near = wide ? title : $(".plate-desc", plateEls[i]), side = wide ? "right" : "below";
-      let stack = 0;
-      if (note0) { await host.writeNear(near, note0, side, stack++); }
-      // what the interview said: a line for the project that matters to this visitor
-      const I = D.host.interview;
-      const mine = plan.who && I && I.notes[plan.who] && (plan.who === "dev" ? !!p.repo : !!p.best);
-      if (mine) { await host.wait(300); await host.writeNear(near, I.notes[plan.who], side, stack++); }
-      if (plan.time === "all" && p.notes) { for (const extra of p.notes.slice(1)) { await host.wait(300); await host.writeNear(near, extra, side, stack++); } lingerNotes.set(i, p.notes.length); }
-      if (p.doodle) { const r = title.getBoundingClientRect(); await host.doodle(p.doodle, r.left + OX() - 40, r.top + scrollY + r.height / 2 - 6, undefined, title); }
-      if (i === 0 && !returning) {
-        await host.wait(600);
-        const r = plateEls[i].getBoundingClientRect();
-        if (r.top < innerHeight && r.bottom > 0 && !sheetOpen && !userClosedSheet) { await host.speak("here, look.", 900); await host.click(plateEls[i]); }
-      }
-    });
-  });
-
-  // contact: circle the line, ask for a note, say goodbye
-  const guest = $("[data-guest]");
-  beat("contact", ".contact-title", "top 70%", async () => {
-    await host.speak(D.host.contact, 1400);
-    await host.circle($(".contact-link"));
-    if (plan.who && D.links.email) await host.speak(D.host.interview.drafted, 2000);
-    await host.wait(300);
-    await host.speak(D.host.askNote, 2000);
-    await host.pointAt($("#guest-input"));
-    await host.wait(200);
-    await host.wave();
-    await host.speak(D.host.bye, 2500);
-    remember({ finished: true });
-  });
-
-  // ------------------------------------------------------------------ attention: the host watches what you look at
-  function watch(el, onLinger, ms) {
-    let t = 0;
-    const start = () => { clearTimeout(t); t = setTimeout(onLinger, ms); };
-    const stop = () => clearTimeout(t);
-    el.addEventListener("pointerenter", start); el.addEventListener("pointerleave", stop);
-    el.addEventListener("focus", start); el.addEventListener("blur", stop);
-    if (!fine) new IntersectionObserver(([e]) => (e.isIntersecting ? start() : stop()), { threshold: 0.8 }).observe(el);
-  }
-  plateEls.forEach((el, i) => watch(el, () => {
-    if (!leader || !tourOn || host.busy || sheetOpen) return;
-    const p = D.projects[i], n = lingerNotes.get(i);
-    const notes = p.notes || [];
-    if (n >= notes.length) return;
-    lingerNotes.set(i, n + 1);
-    host.run(async () => {
-      el.classList.add("is-watched");
-      await host.speak(pick(D.host.linger), 1200);
-      await host.writeNear(innerWidth >= 900 ? $(".plate-title span", el) : $(".plate-desc", el), notes[n], innerWidth >= 900 ? "right" : "below", n);
-      el.classList.remove("is-watched");
-    });
-  }, fine ? 2600 : 3500));
-  const capNoted = new Set();
-  capEls.forEach((el, i) => watch(el, () => {
-    const c = D.capabilities[i];
-    if (!leader || !tourOn || host.busy || capNoted.has(i) || !c.note) return;
-    capNoted.add(i);
-    host.run(async () => { await host.writeNear(el, c.note, "below"); });
-  }, fine ? 1200 : 2500));
-
-  // fast skims past the work get called back
-  let lastY = scrollY, lastT = performance.now(), skipped = false, backUp = false;
-  addEventListener("scroll", () => {
-    const now = performance.now(), dy = scrollY - lastY, dt = now - lastT; lastY = scrollY; lastT = now;
-    if (!leader || !tourOn || host.busy) return;
-    const work = $("#work").getBoundingClientRect();
-    if (!skipped && dy / Math.max(1, dt) > 2.2 && work.bottom < 0 && !memory.finished) {
-      skipped = true;
-      host.run(async () => { await host.speak(D.host.skipped, 1600); await host.arrow(host.pos.x, host.pos.y + 40, $("#work .label")); });
-    }
-    if (!backUp && done.size > 2 && scrollY < 40) { backUp = true; host.run(async () => { await host.nod(); host.quip(D.host.backUp); }); }
-    if (!host.busy) host.keepOnScreen();
-  }, { passive: true });
-
-  // dodge, idle
-  const mouse = { x: -1, y: -1 };
-  const you = $("#you");
-  let lookT = 0;
-  addEventListener("pointermove", (e) => {
-    mouse.x = S ? S.px(e.clientX) : e.clientX; mouse.y = S ? S.py(e.clientY) : e.clientY + scrollY;
-    if (fine) { you.classList.add("on"); you.style.transform = `translate3d(${e.clientX}px,${e.clientY}px,0)`; }
-    if (!leader) { if (performance.now() - lookT > 60) { lookT = performance.now(); post({ t: "look", x: mouse.x, y: mouse.y }); } return; }
-    host.setAttention(mouse.x, mouse.y);
-    if (!fine || host.parked) return;
-    if (Math.hypot(mouse.x - host.pos.x, mouse.y - host.pos.y) < 70) host.dodge(mouse.x, mouse.y);
-  });
-  document.addEventListener("pointerleave", () => you.classList.remove("on"));
-  let idleT = 0, idleCount = 0;
-  function armIdle() {
-    clearTimeout(idleT);
-    idleT = setTimeout(() => {
-      if (leader && tourOn && !host.busy && !sheetOpen && idleCount < 6) {
-        idleCount++;
-        host.run(async () => {
-          await host.wave();
-          const line = idleCount === 2 && fine ? D.host.typeHint : idleCount === 4 ? D.host.penHint : idleCount === 5 && fine && S && !S.multi ? D.host.secondHint : pick(D.host.idle);
-          host.quip(line, 2200);
-          if (idleCount === 3) await host.doodle("question", host.pos.x + 40, host.pos.y);
-        });
-      }
-      armIdle();
-    }, 9000);
-  }
-  ["pointermove", "pointerdown", "scroll", "keydown", "touchstart"].forEach((ev) => addEventListener(ev, armIdle, { passive: true }));
-  armIdle();
-
-  // away and back: the host notices, and doodles while you're gone
-  let hiddenAt = 0;
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) { hiddenAt = performance.now(); return; }
-    const away = performance.now() - hiddenAt;
-    if (away < 6000 || !tourOn || !leader) return;
-    host.run(async () => {
-      if (away > 15000) await host.doodle("smile", host.pos.x + 46, host.pos.y + 10);
-      await host.speak(pick(D.host.away), 1600);
-    });
-  });
-  // small reactions to what the visitor does with the page
-  const once = new Set();
-  const react = (key, fn) => { if (once.has(key) || !tourOn || host.busy || !leader) return; once.add(key); fn(); };
-  document.addEventListener("copy", () => react("copy", () => host.quip(D.host.copied, 2200)));
-  document.addEventListener("contextmenu", () => react("ctx", () => host.quip(D.host.rightClick, 2000)));
-  addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") react("all", () => host.quip(D.host.selectAll, 2000)); });
-  addEventListener("beforeprint", () => react("print", () => host.quip(D.host.printed, 2400)));
-  let rs = 0; addEventListener("resize", () => { clearTimeout(rs); rs = setTimeout(() => react("resize", () => host.quip(D.host.resized, 1600)), 600); });
-
-  // ------------------------------------------------------------------ talk to the host
-  const chips = $("[data-ask-chips]"), askForm = $("[data-ask-form]"), askInput = $("[data-ask-input]");
-  function openAsk() { askEl.hidden = false; askInput.focus(); }
-  $("[data-ask-open]").addEventListener("click", () => (askEl.hidden ? openAsk() : closeAsk()));
-  document.addEventListener("click", (e) => { if (!askEl.hidden && !interviewing && !e.target.closest("#ask, [data-ask-open]")) closeAsk(); });
-  async function act(action) {
-    if (!action) return;
-    if (!leader) { post({ t: "act", action }); return; }
-    if (action === "hero") { await host.scrollTo($(".hero-name"), 0.15); await host.circle($("[data-first]")); return; }
-    if (action === "about") { await host.scrollTo($(".manifesto"), 0.2); await host.underline(words[0]); await host.writeNear(capEls[0], "all of these.", "below"); return; }
-    if (action === "dock") { if (S && S.multi && typeof dock === "function") { if (!(await dock())) return; } else if (S && !S.multi) { await host.speak(D.host.secondHint, 2200); } return; }
-    if (action === "xrayhint") { if (!(S && S.multi)) await host.speak(D.host.secondHint, 2200); return; }
-    if (action === "contact") { await host.scrollTo($(".contact-title"), 0.15); await host.circle($(".contact-link")); return; }
-    if (action === "best") {
-      const i = Math.max(0, D.projects.findIndex((p) => p.best));
-      await host.scrollTo(plateEls[i], 0.25);
-      const r = plateEls[i].getBoundingClientRect();
-      await host.doodle("star", r.left + OX() + 30, r.top + scrollY + 40, undefined, plateEls[i]);
-      await host.click(plateEls[i]); return;
-    }
-    const m = /^project:(\d+)$/.exec(action);
-    if (m) { const i = +m[1]; await host.scrollTo(plateEls[i], 0.25); await host.click(plateEls[i]); }
-  }
-  function buildChips() {
-    chips.replaceChildren();
-    D.host.asks.forEach((a) => {
-      const b = document.createElement("button"); b.type = "button"; b.textContent = a.label;
-      b.addEventListener("click", () => { closeAsk(); if (!leader) { post({ t: "act", action: a.action, say: a.say }); return; } host.run(async () => { await host.speak(a.say, 1200); await act(a.action); }, { priority: true, interrupt: true }); });
-      chips.append(b);
-    });
-  }
-  buildChips();
-  function reply(q) {
-    if (!leader) { post({ t: "ask", q }); return; }
-    const hit = D.host.replies.find(([keys]) => keys.some((k) => q.includes(k)));
-    host.run(async () => {
-      if (hit) { await host.speak(hit[1], 1600); await act(hit[2]); }
-      else { await host.doodle("question", host.pos.x + 40, host.pos.y); await host.speak(pick(D.host.fallback), 2200); }
-    }, { priority: true, interrupt: true });
-  }
-  askForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const q = askInput.value.trim().toLowerCase(); if (!q) return;
-    askInput.value = ""; closeAsk();
-    reply(q);
-  });
-  // cursor chat: on desktop, just start typing — the words appear beside your cursor
-  const youSay = $("[data-you-say]");
-  let draft = "", draftT = 0, typeHinted = false;
-  function sendDraft() {
-    const q = draft.trim().toLowerCase(); draft = ""; youSay.hidden = true; youSay.textContent = "";
-    if (q) reply(q);
-  }
-  if (fine) addEventListener("keydown", (e) => {
-    const t = e.target;
-    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key === "Enter") { if (draft) { e.preventDefault(); sendDraft(); } return; }
-    if (e.key === "Escape") { draft = ""; youSay.hidden = true; return; }
-    if (e.key === "Backspace") { draft = draft.slice(0, -1); youSay.textContent = draft; if (!draft) youSay.hidden = true; return; }
-    if (e.key.length !== 1) return;
-    if (e.key === " " && !draft) return;
-    e.preventDefault();
-    draft = (draft + e.key).slice(0, 80);
-    youSay.hidden = false; youSay.textContent = draft; you.classList.add("on");
-    clearTimeout(draftT); draftT = setTimeout(() => { if (draft) sendDraft(); }, 6000);
-  });
-
-  // tap the host itself to talk to it
-  document.addEventListener("pointerdown", (e) => {
-    if (Math.hypot(e.clientX + OX() - host.pos.x, e.clientY + scrollY - host.pos.y) < 40 && !host.busy) { openAsk(); if (leader) host.quip("yeah?"); }
-  });
-
-  // the visitor's pen: draw on the page. circle a project and the host opens it.
-  const penBtn = $("[data-pen]");
-  let penOn = false, drawing = null;
-  const inkLayer = $("#ink");
-  penBtn.addEventListener("click", () => {
-    penOn = !penOn;
-    penBtn.setAttribute("aria-pressed", String(penOn));
-    $("[data-pen-label]").textContent = penOn ? "Pen on" : "Pen";
-    root.classList.toggle("pen", penOn); root.classList.toggle("pen-touch", penOn && !fine);
-    if (penOn && lenis && !fine) lenis.stop(); else if (lenis && !fine) lenis.start();
-  });
-  let justDrew = false;
-  document.addEventListener("click", (e) => { if (justDrew && !e.target.closest(".hud, #ask, #sheet")) { e.preventDefault(); e.stopPropagation(); } }, true);
-  document.addEventListener("pointerdown", (e) => {
-    if (!penOn || e.target.closest("a, input, .hud, #ask, #sheet, .guest")) return;
-    e.preventDefault();
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("class", "stroke you-stroke");
-    inkLayer.append(path);
-    const near = e.target.closest("section, footer") || pageEl;
-    const px = S ? S.px(e.clientX) : e.clientX, py = S ? S.py(e.clientY) : e.clientY + scrollY;
-    drawing = { path, pts: [[px, py]], near };
-    path.setAttribute("d", `M${px} ${py}`);
-  });
-  document.addEventListener("pointermove", (e) => {
-    if (!drawing) return;
-    const px = S ? S.px(e.clientX) : e.clientX, py = S ? S.py(e.clientY) : e.clientY + scrollY;
-    drawing.pts.push([px, py]);
-    drawing.path.setAttribute("d", drawing.path.getAttribute("d") + ` L${px} ${py}`);
-  });
-  function endDraw() {
-    if (!drawing) return;
-    const { pts, path, near } = drawing; drawing = null;
-    justDrew = true; setTimeout(() => (justDrew = false), 300);
-    host.anchor(path, near);
-    post({ t: "you", d: path.getAttribute("d"), near: near.id || near.tagName });
-    if (pts.length < 8) return;
-    saveMark({ kind: "stroke", d: path.getAttribute("d"), near: near.id || "page", r: host.rectOf(near) });
-    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
-    const box = { l: Math.min(...xs), r: Math.max(...xs), t: Math.min(...ys), b: Math.max(...ys) };
-    const diag = Math.hypot(box.r - box.l, box.b - box.t);
-    const closed = Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < diag * 0.35 && diag > 60;
-    const overlap = (el) => { const r = el.getBoundingClientRect(); const R = { l: r.left + OX(), r: r.right + OX(), t: r.top + scrollY, b: r.bottom + scrollY }; const w = Math.max(0, Math.min(box.r, R.r) - Math.max(box.l, R.l)), h = Math.max(0, Math.min(box.b, R.b) - Math.max(box.t, R.t)); return (w * h) / Math.max(1, (R.r - R.l) * (R.b - R.t)); };
-    let plate = -1, best = 0.5;
-    plateEls.forEach((el, i) => { const o = overlap($(".plate-title", el)); if (o > best) { best = o; plate = i; } });
-    if (closed && plate > -1) { if (!leader) { post({ t: "act", action: `project:${plate}`, say: pick(D.host.circled) }); return; } host.run(async () => { await host.speak(pick(D.host.circled), 900); await host.click(plateEls[plate]); }, { priority: true, interrupt: true }); return; }
-    const hostNote = $$(".note:not(.guest-note)").find((n) => overlap(n) > 0.4);
-    if (!leader) { post({ t: "drew", box, onNote: !!hostNote }); return; }
-    if (hostNote) { host.run(async () => { await host.moveTo(box.r + 20, box.t, 400); await host.speak(pick(D.host.scribbled), 1500); }, { priority: true, interrupt: true }); return; }
-    if (Math.random() < 0.5) host.run(async () => { await host.moveTo(box.r + 24, box.b + 10, 500); await host.speak(pick(D.host.drew), 1300); }, { priority: true, interrupt: true });
-  }
-  document.addEventListener("pointerup", endDraw); document.addEventListener("pointercancel", endDraw);
-
-  // guest note: the visitor writes on the page in their own hand
-  guest.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const text = $("#guest-input").value.trim(); if (!text) return;
-    $("#guest-input").value = "";
-    if (!leader) { post({ t: "guest", text }); return; }
-    pinGuest(text);
-  });
-  function pinGuest(text) {
-    const r = guest.getBoundingClientRect();
-    const count = $$(".guest-note").length;
-    const pending = host.note(text, r.left + OX() + 20, r.top + scrollY + r.height + 24 + count * 36, { cls: "guest-note", rotate: -2, anchor: guest });
-    host.run(async () => {
-      const n = await pending;
-      const nr = n.getBoundingClientRect();
-      await host.doodle("heart", nr.right + 22, nr.top + scrollY + nr.height / 2);
-      await host.speak(pick(D.host.thanks), 1800);
-      const notes = [...(memory.notes || []), text].slice(-5); remember({ notes });
-      saveMark({ kind: "note", text, x: parseFloat(n.style.left), y: parseFloat(n.style.top), near: "contact", r: host.rectOf($("#contact")) });
-    }, { priority: true, interrupt: true });
-  }
-  // ------------------------------------------------------------------ handoff: the page remembers its visitors
-  // pen marks and notes are kept (on the server in D.handoff.url, and in this browser) and come back for the next visitor
-  const HAND = D.handoff || {}, HKEY = "host.marks";
-  const localMarks = () => { try { return JSON.parse(localStorage.getItem(HKEY) || "[]"); } catch (_) { return []; } };
-  function saveMark(mark) {
-    try { localStorage.setItem(HKEY, JSON.stringify([...localMarks(), mark].slice(-40))); } catch (_) {}
-    if (HAND.url) fetch(HAND.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(mark) }).catch(() => {});
-  }
-  function showPast(marks) {
-    const els = [];
-    marks.forEach((m) => {
-      const near = (m.near && $("#" + CSS.escape(m.near))) || pageEl; if (!m.r) return;
-      if (m.kind === "stroke" && m.d) {
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); path.setAttribute("class", "stroke you-stroke past"); path.setAttribute("d", m.d);
-        inkLayer.append(path); host.anchor(path, near, m.r); els.push(path);
-      } else if (m.kind === "note" && m.text) {
-        const n = document.createElement("span"); n.className = "hand note guest-note past"; n.textContent = m.text;
-        n.style.left = m.x + "px"; n.style.top = m.y + "px"; n.style.transform = "rotate(-2deg)";
-        pageEl.append(n); host.anchor(n, near, m.r); els.push(n);
-      }
-    });
-    host.reflow();
-    return els;
-  }
-  (async () => {
-    let marks = localMarks();
-    if (HAND.url) { try { const r = await fetch(HAND.url, { cache: "no-store" }); const j = await r.json(); marks = [...(j.marks || []), ...marks]; } catch (_) {} }
-    const els = showPast(marks.slice(-60));
-    if (!els.length || !leader) return;
-    // the host notices the first of them you come across
-    let said = false;
-    const io = new IntersectionObserver((entries) => {
-      const hit = entries.find((e) => e.isIntersecting); if (!hit || said || !tourOn) return;
-      said = true; io.disconnect();
-      host.run(async () => { await host.speak(D.host.someoneWasHere, 1500); await host.pointAt(hit.target); await host.speak(D.host.theyLeft, 1200); });
-    }, { threshold: 0.5 });
-    els.forEach((el) => io.observe(el));
+// ------------------------------------------------------------------ cursor + preview
+const cursor = $(".cursor");
+const preview = document.createElement("div"); preview.className = "preview"; preview.innerHTML = `<div class="preview-inner"></div><p class="preview-name serif"></p><p class="mono preview-cap"><span></span><span></span></p>`;
+document.body.append(preview);
+const pv = { x: innerWidth / 2, y: innerHeight / 2, tx: innerWidth / 2, ty: innerHeight / 2 };
+const cu = { x: -100, y: -100, tx: -100, ty: -100 };
+if (fine) {
+  root.classList.add("has-cursor");
+  addEventListener("pointermove", (e) => { cu.tx = e.clientX; cu.ty = e.clientY; pv.tx = e.clientX + Math.min(260, innerWidth * 0.18); pv.ty = e.clientY; }, { passive: true });
+  (function follow() {
+    cu.x += (cu.tx - cu.x) * 0.35; cu.y += (cu.ty - cu.y) * 0.35;
+    pv.x += (pv.tx - pv.x) * 0.12; pv.y += (pv.ty - pv.y) * 0.12;
+    cursor.style.transform = `translate3d(${cu.x}px,${cu.y}px,0)`;
+    const tilt = Math.max(-8, Math.min(8, (pv.tx - pv.x) * 0.06));
+    preview.style.left = pv.x + "px"; preview.style.top = pv.y + "px"; preview.style.rotate = tilt + "deg";
+    requestAnimationFrame(follow);
   })();
-
-  // sound + tour toggles
-  const soundBtn = $("[data-sound]");
-  soundBtn.addEventListener("click", () => {
-    host.sound = !host.sound;
-    soundBtn.setAttribute("aria-pressed", String(host.sound));
-    $("[data-sound-label]").textContent = host.sound ? "Sound on" : "Sound";
+  document.addEventListener("pointerover", (e) => {
+    const t = e.target.closest("a, button");
+    cursor.classList.toggle("is-link", !!t && !t.closest(".work"));
   });
-  tourBtn.addEventListener("click", async () => {
-    tourOn = !tourOn;
-    tourBtn.setAttribute("aria-pressed", String(tourOn));
-    $("[data-tour-label]").textContent = tourOn ? "Tour on" : "Tour off";
-    root.classList.toggle("host-solo", !tourOn);
-    if (!tourOn) { host.quip(D.host.solo, 3000); await host.park(); }
-    else { host.parked = false; host.run(async () => { await host.moveTo(OX() + innerWidth * 0.5, scrollY + innerHeight * 0.5); await host.wave(); await host.speak(D.host.back, 900); }); }
-  });
+}
+const hsl = (h, s, l) => `hsl(${Math.round(((h % 1) + 1) % 1 * 360)} ${s}% ${l}%)`;
+rows.forEach((li, i) => {
+  const p = C.projects[i];
+  const btn = $(".work-btn", li);
+  const enter = () => {
+    hoverHue = p.hue; applyState();
+    $(".preview-inner", preview).style.background = `radial-gradient(120% 80% at 30% 20%, ${hsl(p.hue, 70, 88)}, ${hsl(p.hue + 0.08, 55, 62)} 45%, ${hsl(p.hue + 0.2, 45, 22)})`;
+    const [a, b] = $$(".preview-cap span", preview); a.textContent = p.status; b.textContent = p.year; $(".preview-name", preview).textContent = p.title;
+    preview.classList.add("on"); cursor.classList.add("is-view");
+  };
+  const leave = () => { hoverHue = null; applyState(); preview.classList.remove("on"); cursor.classList.remove("is-view"); };
+  li.addEventListener("pointerenter", enter); li.addEventListener("pointerleave", leave);
+  btn.addEventListener("focus", () => { hoverHue = p.hue; applyState(); });
+  btn.addEventListener("blur", () => { hoverHue = null; applyState(); });
+  btn.addEventListener("click", () => { leave(); openDetail(i); });
+});
 
-  // ------------------------------------------------------------------ rewind: the page un-draws, then draws itself back
-  const rw = $("[data-rewind]"), rwSay = $("[data-rewind-say]"), ticksEl = $("[data-ticks]");
-  const H = (window.HISTORY && window.HISTORY.commits) || [];
-  H.forEach((c, i) => { const t = document.createElement("span"); t.style.left = (H.length > 1 ? (i / (H.length - 1)) * 100 : 100) + "%"; t.title = `${c.date} ${c.msg}`; ticksEl.append(t); });
-  const commitAt = (v) => H[Math.round(v * (H.length - 1))];
-  const showCommit = (v) => { const c = commitAt(v); rwSay.textContent = c ? `${c.date} — ${c.msg}` : "\u00a0"; ticksEl.querySelectorAll("span").forEach((t, i) => t.classList.toggle("on", H[i] === c)); };
-  showCommit(1);
-  let rwQuipped = false, rwWatching = false, rwReleased = true, rwDone = null, rwTween = null;
-  function rewindTo(v, fromPeer) {
-    host.rewind(v); showCommit(v);
-    if (!fromPeer) post({ t: "rewind", v });
-  }
-  rw.addEventListener("input", () => {
-    if (rwTween) { rwTween.kill(); rwTween = null; }
-    rwReleased = false;
-    rewindTo(rw.value / 1000);
-    if (!rwWatching && leader) {
-      // the host comes over and watches you do it
-      rwWatching = true;
-      host.run(async () => {
-        const r = host.rectOf(rw); await host.moveTo(r.x + r.w + 24, r.cy, 500);
-        if (!rwQuipped) { rwQuipped = true; host.quip(pick(D.host.rewindLines), 2200); }
-        if (!rwReleased) await new Promise((res) => (rwDone = res));
-        rwWatching = false; rwDone = null;
-      }, { priority: true, interrupt: true });
-    }
-  });
-  rw.addEventListener("change", () => {
-    const o = { v: rw.value / 1000 };
-    rwTween = gsap.to(o, { v: 1, duration: 1 + (1 - o.v) * 1.6, ease: "power2.inOut", onUpdate: () => { rw.value = Math.round(o.v * 1000); rewindTo(o.v); }, onComplete: () => { rwTween = null; rwReleased = true; if (rwDone) rwDone(); if (leader) host.quip(D.host.rewound, 1200); } });
-  });
+// ------------------------------------------------------------------ project detail
+const detail = $(".detail");
+let lastFocus = null;
+function fillDetail(i) {
+  const p = C.projects[i];
+  $("[data-d-idx]").textContent = `${pad(i + 1)} / ${pad(C.projects.length)}`;
+  $("[data-d-title]").textContent = p.title;
+  $("[data-d-year]").textContent = p.year; $("[data-d-kind]").textContent = p.kind; $("[data-d-status]").textContent = p.status;
+  $("[data-d-text]").textContent = p.text;
+  const links = $("[data-d-links]"); links.replaceChildren();
+  if (p.link) { const a = document.createElement("a"); a.href = p.link; a.target = "_blank"; a.rel = "noopener"; a.textContent = "View source ↗"; links.append(a); }
+  else { const s = document.createElement("span"); s.className = "label"; s.textContent = "Link coming soon"; links.append(s); }
+  if (hasGsap && !reduce) gsap.fromTo($(".detail-title .line > span"), { yPercent: 110 }, { yPercent: 0, duration: 1.1, ease: "expo.out", delay: 0.15 });
+}
+function openDetail(i) {
+  lastFocus = document.activeElement;
+  detailOpen = i; fillDetail(i);
+  root.classList.remove("dark"); root.classList.add("detail-open");
+  detail.hidden = false; requestAnimationFrame(() => detail.classList.add("on"));
+  if (lenis) lenis.stop();
+  applyState();
+  $("[data-close]").focus({ preventScroll: true });
+}
+function closeDetail() {
+  if (detailOpen < 0) return;
+  detailOpen = -1; detail.classList.remove("on"); root.classList.remove("detail-open");
+  setTimeout(() => { if (detailOpen < 0) detail.hidden = true; }, 700);
+  if (lenis) lenis.start();
+  root.classList.toggle("dark", section === "contact");
+  applyState();
+  if (lastFocus) lastFocus.focus({ preventScroll: true });
+}
+$("[data-close]").addEventListener("click", closeDetail);
+$("[data-prev]").addEventListener("click", () => { detailOpen = (detailOpen - 1 + C.projects.length) % C.projects.length; fillDetail(detailOpen); applyState(); });
+$("[data-next]").addEventListener("click", () => { detailOpen = (detailOpen + 1) % C.projects.length; fillDetail(detailOpen); applyState(); });
+addEventListener("keydown", (e) => {
+  if (detailOpen < 0) return;
+  if (e.key === "Escape") closeDetail();
+  if (e.key === "ArrowRight") $("[data-next]").click();
+  if (e.key === "ArrowLeft") $("[data-prev]").click();
+});
 
-  // ------------------------------------------------------------------ the machine: live vitals of the box this page lives on
-  const M = D.machine;
-  const gaugeEls = [];
-  if (M) {
-    $("[data-machine-lede]").textContent = M.lede;
-    const gw = $("[data-gauges]");
-    M.gauges.forEach((g, i) => {
-      const d = document.createElement("div"); d.className = "gauge";
-      d.innerHTML = `<svg id="g-${i}" class="gauge-svg" viewBox="0 0 200 130" aria-hidden="true"></svg><span class="mono muted gauge-label">${g.label}</span>`;
-      gw.append(d); gaugeEls.push({ ...g, el: d, svg: $("svg", d), needle: null, note: null });
-    });
-  }
-  const VKEY = "host.vitals";
-  let vit = null; try { vit = JSON.parse(localStorage.getItem(VKEY) || "null"); } catch (_) {}
-  let vitLive = false;
-  async function fetchVitals() {
-    if (!M || !M.url) return false;
-    try {
-      const r = await fetch(M.url + (M.url.includes("?") ? "&" : "?") + "t=" + Date.now(), { cache: "no-store" }); if (!r.ok) throw new Error(r.status);
-      vit = await r.json(); vitLive = true; try { localStorage.setItem(VKEY, JSON.stringify(vit)); } catch (_) {}
-    } catch (_) { vitLive = false; }
-    return vitLive;
-  }
-  const fmtUp = (s) => { const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60); return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`; };
-  function gaugeValue(key) {
-    if (!vit) return { text: "—", f: 0 };
-    if (key === "uptime") return { text: fmtUp(vit.uptime_s || 0), f: Math.min(1, (vit.uptime_s || 0) / (30 * 86400)) };
-    if (key === "load") return { text: `${vit.load1 ?? "—"} / ${vit.cpus || "?"}`, f: vit.cpus ? Math.min(1, (vit.load1 || 0) / vit.cpus) : 0 };
-    if (key === "mem") return { text: vit.mem_total_mb ? `${(vit.mem_used_mb / 1024).toFixed(1)} of ${(vit.mem_total_mb / 1024).toFixed(0)} GB` : "—", f: vit.mem_total_mb ? vit.mem_used_mb / vit.mem_total_mb : 0 };
-    if (key === "disk") return { text: vit.disk_pct != null ? `${vit.disk_pct}% full` : "—", f: (vit.disk_pct || 0) / 100 };
-    if (key === "temp") return { text: vit.temp_c != null ? `${vit.temp_c}°C` : "—", f: Math.min(1, (vit.temp_c || 0) / 90) };
-    return { text: "—", f: 0 };
-  }
-  const needleD = (f) => { const a = Math.PI + f * Math.PI, x = 100 + Math.cos(a) * 66, y = 112 + Math.sin(a) * 66; return `M100 112 L${x.toFixed(1)} ${y.toFixed(1)}`; };
-  const timeOf = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).toLowerCase(); } catch (_) { return "?"; } };
-  function machineStatus() {
-    const st = $("[data-machine-status]"); if (!st) return;
-    if (!vit) { st.textContent = "no signal"; return; }
-    st.textContent = `${vit.host || M.name} · ${vit.platform || ""} · ${vitLive ? "as of" : "last seen"} ${timeOf(vit.at)}${vit.at ? " · " + new Date(vit.at).toLocaleDateString() : ""}`;
-  }
-  let gaugesDrawn = false;
-  if (M) beat("machine", "#machine", "top 70%", async () => {
-    await fetchVitals(); machineStatus();
-    await host.speak(D.host.machineIntro, 1200);
-    for (const g of gaugeEls) {
-      const arc = host.stroke("M22 112 A78 78 0 0 1 178 112", { ms: 520, into: g.svg, width: 2.4 }); if (!arc) return;
-      await host.drawPath(arc, 520);
-      const v = gaugeValue(g.key);
-      g.needle = host.stroke(needleD(v.f), { ms: 260, into: g.svg, width: 3 }); if (!g.needle) return; g.needle.classList.add("needle");
-      await host.drawPath(g.needle, 260);
-      const r = host.rectOf(g.svg);
-      g.note = await host.note(v.text, r.x + r.w * 0.5 - 30, r.y + r.h * 0.62, { rotate: -2, size: "22px", anchor: g.svg });
-    }
-    gaugesDrawn = true;
-    await host.wait(200);
-    await host.speak(!vit ? D.host.machineNever : (vitLive ? D.host.machineLive : D.host.machineOffline).replace("{time}", timeOf(vit.at)), 2200);
-  });
-  setInterval(async () => {
-    if (!M || !gaugesDrawn || !leader) return;
-    await fetchVitals(); machineStatus();
-    gaugeEls.forEach((g) => { const v = gaugeValue(g.key); if (g.needle) gsap.to(g.needle, { attr: { d: needleD(v.f) }, duration: 1.2, ease: "power2.out" }); if (g.note && g.note.textContent !== v.text) g.note.textContent = v.text; });
-  }, 30000);
-
-  // ------------------------------------------------------------------ windows
-  const secondBtn = $("[data-second]");
-  if (S && fine) {
-    secondBtn.hidden = false;
-    if (!leader) root.classList.add("second");
-    secondBtn.addEventListener("click", () => {
-      if (S.multi) { post({ t: "focus" }); return; }
-      if (!S.openSecond()) host.quip(D.host.popupBlocked, 3000);
-    });
-    // the page grows to the size of the monitor (or shrinks back): every mark follows what it was drawn around
-    S.listen("mode", (on) => {
-      root.classList.toggle("multi", on);
-      host.reflow(); ScrollTrigger.refresh();
-      secondBtn.setAttribute("aria-pressed", String(on));
-      $("[data-second-label]").textContent = on ? "Two windows" : "Second window";
-      if (leader) { post(host.snapshot()); host.run(async () => { host.keepOnScreen(); await host.speak(on ? D.host.bigger : D.host.smaller, 1400); }, { priority: true }); }
-    });
-    S.listen("move", () => { host.reflow(); ScrollTrigger.update(); });
-    // the host takes hold of the second window and slides it into place, edge to edge with this one
-    async function dock() {
-      const o = S.other(); if (!o || !S.second || S.second.closed || o.sx == null) return false;
-      const gap = 10, room = screen.availWidth - (screenX + outerWidth);
-      const w = Math.max(420, Math.min(o.ow, room > 480 ? room - gap - 8 : o.ow));
-      let x = room > 480 ? screenX + outerWidth + gap : screenX - w - gap; if (x < 0) x = 0;
-      const y = screenY, h = outerHeight;
-      if (Math.abs(o.sx - x) < 24 && Math.abs(o.syy - y) < 24) return true;
-      await host.speak(D.host.docking, 1200);
-      await host.moveTo(o.x + 26, o.y + 18, 600);
-      host.grab(true);
-      const follow = setInterval(() => { const q = S.other(); if (q) host.jump(q.x + 26, q.y + 18); }, 16);
-      const ok = await S.moveSecond(x, y, w, h, 1100);
-      clearInterval(follow); host.grab(false);
-      if (!ok) { await host.speak(D.host.cantMove, 2400); return false; }
-      await host.wait(400);
-      return true;
-    }
-    // someone opened a second window: the host walks into it, then puts it where it belongs
-    let greetedPeer = false, seamed = false, xrayed = false;
-    S.listen("hello", (peer) => {
-      if (!leader) { post({ t: "snapreq" }); return; }
-      remember({ usedTwo: true });
-      toast("you", D.host.secondJoined, "you");
-      setTimeout(() => post(host.snapshot()), 300);
-      if (greetedPeer) return; greetedPeer = true;
-      host.run(async () => {
-        await host.wait(900);
-        const o = S.other(); if (!o) return;
-        const back = { x: host.pos.x, y: host.pos.y };
-        await host.moveTo(o.x + o.w * 0.5, o.y + o.h * 0.4, 1400);
-        await host.wave();
-        await host.speak(pick(D.host.otherWindow), 1800);
-        const docked = await dock();
-        await host.wait(S.seam ? 1800 : 300);
-        if (docked && fine) await host.speak(D.host.xrayHint, 2400);
-        if (fine) await host.speak(D.host.dragHint, 2200);
-        await host.moveTo(back.x, back.y, 1200);
-        host.keepOnScreen();
-      }, { priority: true });
-    });
-    // two windows edge to edge: one line across both, to prove it
-    S.listen("seam", (on) => {
-      if (!on || !leader || seamed) return; seamed = true;
-      host.run(async () => {
-        const o = S.other(); if (!o) return;
-        const left = o.vx > S.vx ? { x: S.vx + innerWidth, y: scrollY + innerHeight * 0.5 } : { x: o.x + o.w, y: o.y + o.h * 0.5 };
-        const x1 = left.x - Math.min(260, innerWidth * 0.3), x2 = left.x + Math.min(260, (o.vx > S.vx ? o.w : innerWidth) * 0.3), y = left.y;
-        await host.moveTo(x1, y - 10, 500);
-        const d = `M${x1} ${y} Q${(x1 + x2) / 2} ${y + 6} ${x2} ${y - 2}`;
-        host.stroke(d, { ms: 900 }); await host.traceAlong(d, 900);
-        await host.speak(D.host.seam, 1600);
-      }, { priority: true });
-    });
-    const baseTitle = document.title;
-    const retitle = () => { document.title = !S.multi ? baseTitle : leader ? `${baseTitle} · window 1` : S.instrument === "xray" ? `${baseTitle} · x-ray` : S.instrument === "lens" ? `${baseTitle} · loupe` : `${baseTitle} · window 2`; };
-    S.listen("instrument", (inst) => { retitle(); toast("you", inst === "xray" ? "x-ray" : inst === "lens" ? "loupe" : "back to the desk", "you"); });
-    S.listen("mode", retitle);
-    S.listen("bye", () => { if (leader) host.run(async () => { host.keepOnScreen(); await host.speak(D.host.windowGone, 1400); }, { priority: true, interrupt: true }); });
-    S.listen("leader-lost", () => host.quip(D.host.leaderLost, 1200));
-    S.listen("op", (m) => {
-      if (leader) {
-        if (m.t === "snapreq") post(host.snapshot());
-        else if (m.t === "open") { if (m.at === "me") { closeSheet(false); remember({ opened: [...new Set([...(memory.opened || []), m.i])] }); } else openSheet(m.i, "other"); }
-        else if (m.t === "sketchAt") {
-          if (!m.box || remoteSketching === m.i) return;
-          const p = D.projects[m.i]; if (!p || !p.sketch) return;
-          remoteSketching = m.i;
-          host.run(async () => { await host.moveTo(m.box.x + 10, m.box.y + 10, 900); await host.sketch({ remote: true, ...m.box }, p.sketch); remoteSketching = -1; }, { priority: true, interrupt: true });
-        }
-        else if (m.t === "close") { remoteSketching = -1; userClosedSheet = true; host.run(async () => { host.hush(); }, { priority: true, interrupt: true }); }
-        else if (m.t === "act") host.run(async () => { if (m.say) await host.speak(m.say, 1200); await act(m.action); }, { priority: true, interrupt: true });
-        else if (m.t === "ask") reply(m.q);
-        else if (m.t === "guest") pinGuest(m.text);
-        else if (m.t === "look") { host.setAttention(m.x, m.y); if (!host.parked && Math.hypot(m.x - host.pos.x, m.y - host.pos.y) < 70) host.dodge(m.x, m.y); }
-        else if (m.t === "drew") host.run(async () => { await host.moveTo(m.box.r + 24, m.box.b + 10, 500); await host.speak(pick(m.onNote ? D.host.scribbled : D.host.drew), 1300); }, { priority: true, interrupt: true });
-        else if (m.t === "you") { const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); path.setAttribute("class", "stroke you-stroke"); path.setAttribute("d", m.d); inkLayer.append(path); host.anchor(path, $("#" + m.near) || pageEl); }
-        else if (m.t === "focus") host.quip(D.host.alreadyTwo, 1600);
-        else if (m.t === "rewind") rewindTo(m.v, true);
-        else if (m.t === "instrument") { if (m.inst === "xray") { if (!xrayed) { xrayed = true; host.run(async () => { await host.speak(D.host.xray, 1800); }, { priority: true, interrupt: true }); } } else if (m.inst === "lens") host.quip(D.host.lens, 1600); else if (xrayed) host.quip(D.host.xrayOff, 1200); }
-      } else {
-        if (m.t === "snap") { host.applySnapshot(m); if (root.classList.contains("no-write")) {} }
-        else if (m.t === "sheet") { if (m.open) showSheet(m.i); else closeSheet(false); }
-        else if (m.t === "you") { const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); path.setAttribute("class", "stroke you-stroke"); path.setAttribute("d", m.d); inkLayer.append(path); host.anchor(path, $("#" + m.near) || pageEl); }
-        else if (m.t === "focus") host.quip(D.host.alreadyTwo, 1600);
-        else if (m.t === "rewind") rewindTo(m.v, true);
-        else host.apply(m);
-      }
-    });
-    if (!leader) setTimeout(() => post({ t: "snapreq" }), 400);
-  } else if (secondBtn) secondBtn.remove();
-
-  // ------------------------------------------------------------------ choreography
-  gsap.from(".hero .line:not(.hero-name .line) > span", { yPercent: 110, duration: 1.1, stagger: 0.08, ease: "expo.out", delay: 0.2 });
-  $$("[data-rule]").forEach((r, i) => ScrollTrigger.create({ trigger: r, start: "top 92%", onEnter: () => setTimeout(() => r.classList.add("is-drawn"), (i % 3) * 120) }));
-  gsap.from(".hud", { y: -20, opacity: 0, duration: 0.8, delay: 0.6 });
-  gsap.fromTo(".manifesto .w", { opacity: 0.15 }, { opacity: 1, stagger: 0.05, ease: "none", scrollTrigger: { trigger: ".manifesto", start: "top 80%", end: "bottom 55%", scrub: true } });
-  $$(".label, .plate, .contact-title .line > span, .contact-line").forEach((el) => gsap.from(el, { y: 36, opacity: 0, duration: 1, ease: "expo.out", scrollTrigger: { trigger: el, start: "top 90%" } }));
-  addEventListener("load", () => ScrollTrigger.refresh());
-  if (document.fonts) document.fonts.ready.then(() => ScrollTrigger.refresh());
+// ------------------------------------------------------------------ loader + intro
+const count = $("[data-count]"), bar = $(".loader-bar span"), loader = $(".loader");
+const fontsReady = document.fonts ? document.fonts.ready : Promise.resolve();
+const minTime = new Promise((r) => setTimeout(r, reduce ? 200 : 1400));
+const prog = { v: 0 };
+let done = false;
+Promise.all([fontsReady, minTime]).then(() => (done = true));
+(function loadTick() {
+  prog.v += ((done ? 100 : 86) - prog.v) * (done ? 0.18 : 0.05);
+  const v = Math.round(prog.v);
+  count.textContent = pad(v, 3); bar.style.transform = `scaleX(${v / 100})`;
+  if (v >= 100) return reveal();
+  requestAnimationFrame(loadTick);
 })();
+function reveal() {
+  root.classList.remove("is-loading");
+  if (!hasGsap || reduce) { loader.remove(); return; }
+  const tl = gsap.timeline();
+  tl.to(loader, { yPercent: -100, duration: 1.1, ease: "expo.inOut", onComplete: () => loader.remove() })
+    .from(".hero-title .line > span", { yPercent: 115, duration: 1.4, ease: "expo.out", stagger: 0.09 }, "-=0.45")
+    .from(".hero-meta > *, .hero-foot > *, .top > *", { y: 16, opacity: 0, duration: 1, ease: "expo.out", stagger: 0.05 }, "-=1.1");
+}
+
+// ------------------------------------------------------------------ scroll choreography
+if (hasGsap && !reduce) {
+  $$(".works .work, .cap, .label").forEach((el) => gsap.from(el, { y: 40, opacity: 0, duration: 1.1, ease: "expo.out", scrollTrigger: { trigger: el, start: "top 92%" } }));
+  gsap.from(".contact-title .line > span", { yPercent: 115, duration: 1.4, ease: "expo.out", stagger: 0.1, scrollTrigger: { trigger: ".contact-title", start: "top 80%" } });
+  gsap.to(".hero-title", { yPercent: -18, opacity: 0.2, ease: "none", scrollTrigger: { trigger: ".hero", start: "top top", end: "bottom top", scrub: true } });
+  addEventListener("load", () => ScrollTrigger.refresh());
+}
+addEventListener("resize", () => { applyState(); track(); });
