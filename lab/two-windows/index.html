@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Portfolio</title>
+    <meta name="description" content="A walkthrough of my work, given by me." />
+    <meta name="theme-color" content="#f4f2ec" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f4f2ec'/%3E%3Cpath d='M9 6l14 11-6 1 4 7-3 1-4-7-4 5z' fill='%231d4ed8'/%3E%3C/svg%3E" />
+    <link rel="preload" href="assets/fonts/BricolageGrotesque.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="assets/fonts/Caveat.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="assets/fonts.css" />
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#work">Skip to work</a>
+
+    <div class="grain" aria-hidden="true"></div>
+    <div class="lamp" aria-hidden="true"></div>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <filter id="bleed" x="-5%" y="-5%" width="110%" height="110%">
+        <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="1" result="n" />
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="1.6" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </svg>
+
+    <!-- the host: a second cursor on the page -->
+    <div class="host" id="host" aria-live="polite" aria-label="Adham, your host">
+      <svg class="host-arrow" viewBox="0 0 24 24" width="24" height="24"><path d="M4 3l14.5 11.5-6.3.9 3.9 7.1-2.8 1.4-3.9-7.1-4.9 4.2z" /></svg>
+      <span class="host-tag"><span class="host-dot"></span><span data-host-name></span><span class="host-status" data-host-status></span></span>
+      <span class="host-say" data-host-say hidden></span>
+    </div>
+
+    <!-- the visitor's own tag, so it reads as two people on one page -->
+    <div class="you" id="you" aria-hidden="true"><span class="you-tag">you</span><span class="you-say" data-you-say hidden></span></div>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+
+    <!-- ask the host -->
+    <div class="ask" id="ask" hidden>
+      <p class="hand ask-q" data-ask-q hidden></p>
+      <div class="ask-chips" data-ask-chips></div>
+      <form class="ask-form" data-ask-form>
+        <input class="ask-input hand" type="text" maxlength="60" autocomplete="off" placeholder="say something to Adham…" data-ask-input aria-label="Say something to the host" />
+        <button class="ask-send mono" type="submit">Send</button>
+      </form>
+    </div>
+
+    <header class="hud">
+      <a href="#top" class="logo" aria-label="Back to top"><span data-initials></span></a>
+      <nav class="nav mono" aria-label="Primary">
+        <a href="#about">About</a>
+        <a href="#work">Work</a>
+        <a href="#contact">Contact</a>
+        <button class="tour mono" type="button" data-ask-open>Ask <span data-host-first></span></button>
+        <button class="tour mono window-btn" type="button" data-second title="Open a second window onto this page"><span data-second-label>Second window</span></button>
+        <button class="tour mono" type="button" data-pen aria-pressed="false" title="Draw on the page"><span data-pen-label>Pen</span></button>
+        <button class="tour mono" type="button" data-sound aria-pressed="false" title="Voice and pen sound"><span data-sound-label>Sound</span></button>
+        <button class="tour mono" type="button" data-tour aria-pressed="true"><span class="host-dot"></span><span data-tour-label>Tour on</span></button>
+      </nav>
+    </header>
+
+    <!-- the page: with two windows open, this is laid out at the size of the monitor -->
+    <div id="page">
+    <!-- annotation layer: everything the host draws, in page coordinates -->
+    <svg class="ink" id="ink" aria-hidden="true"></svg>
+    <main id="top">
+      <section class="hero">
+        <p class="mono hero-meta"><span class="line"><span>(Portfolio — <span data-year></span>) · <span data-presence>Adham is here</span></span></span></p>
+        <h1 class="hero-name" data-x="real glyph outlines, traced by the host">
+          <span class="line"><span data-first></span></span>
+          <span class="line"><span data-last></span></span>
+        </h1>
+        <span class="rule" data-rule></span>
+        <div class="hero-foot">
+          <p class="hero-tag"><span class="line"><span data-bind="tagline"></span></span></p>
+          <p class="mono muted"><span class="line"><span data-bind="role"></span></span></p>
+        </div>
+      </section>
+
+      <section id="about" class="about">
+        <p class="label mono">(01) — About</p>
+        <p class="manifesto" data-manifesto></p>
+        <ul class="caps mono" data-caps></ul>
+      </section>
+
+      <section id="work" class="work">
+        <p class="label mono">(02) — Selected work · <span data-count></span></p>
+        <span class="rule" data-rule></span>
+        <div class="plates"></div>
+      </section>
+
+      <section id="machine" class="machine">
+        <p class="label mono">(03) — The machine</p>
+        <p class="machine-lede" data-machine-lede></p>
+        <div class="gauges" data-gauges></div>
+        <p class="mono muted machine-status" data-machine-status>&nbsp;</p>
+      </section>
+
+      <section id="contact" class="contact">
+        <p class="label mono">(04) — Contact</p>
+        <h2 class="contact-title"><span class="line"><span>Say hello.</span></span></h2>
+        <p class="contact-line"><a class="contact-link" data-contact><span data-contact-text></span></a></p>
+        <p class="muted contact-sub">Or find me on <a href="https://github.com/adhammomen" data-github>GitHub</a>.</p>
+      <form class="guest" data-guest>
+        <label class="mono muted" for="guest-input">Leave a note on the page</label>
+        <div class="guest-row"><input id="guest-input" class="hand guest-input" type="text" maxlength="80" autocomplete="off" placeholder="write something…" /><button class="tour mono" type="submit">Pin it</button></div>
+      </form>
+      </section>
+    </main>
+
+    <span class="rule" data-rule style="margin:0 var(--pad)"></span>
+    <!-- rewind: drag to un-draw the page. the ticks are the real commits of this site -->
+    <div class="rewind" data-rewind-wrap>
+      <label class="mono muted" for="rewind">Rewind</label>
+      <div class="rewind-track">
+        <div class="rewind-ticks" data-ticks aria-hidden="true"></div>
+        <input id="rewind" class="rewind-range" type="range" min="0" max="1000" value="1000" step="1" aria-label="Rewind the page" data-rewind />
+      </div>
+      <p class="hand rewind-say" data-rewind-say>&nbsp;</p>
+    </div>
+    <footer class="footer mono">
+      <span>© <span data-year></span> <span data-bind="name"></span></span>
+      <span class="muted">Handwriting mine. Cursor mine. Bugs mine.</span>
+      <a href="#top">Top ↑</a>
+    </footer>
+    </div>
+
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+      <div class="sheet-scrim" data-sheet-close></div>
+      <div class="sheet-panel">
+        <button class="sheet-close mono" type="button" data-sheet-close>Close ✕</button>
+        <p class="mono sheet-meta"><span data-sheet-idx></span> · <span data-sheet-status></span> · <span data-sheet-year></span></p>
+        <h2 class="sheet-title" id="sheet-title" data-sheet-title></h2>
+        <svg class="sheet-sketch" data-sheet-sketch viewBox="0 0 640 360" hidden aria-label="Sketch"></svg>
+        <p class="hand sheet-note" data-sheet-note></p>
+        <p class="sheet-desc" data-sheet-desc></p>
+        <ul class="sheet-tags mono" data-sheet-tags></ul>
+        <div class="sheet-links" data-sheet-links></div>
+        <p class="sheet-nav mono"><button type="button" data-sheet-prev>← Prev</button><button type="button" data-sheet-next>Next →</button></p>
+      </div>
+    </div>
+
+    <script src="assets/screen.js"></script>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <script src="assets/vendor/ScrollTrigger.min.js"></script>
+    <script src="assets/vendor/lenis.min.js"></script>
+    <script src="assets/projects.js"></script>
+    <script src="assets/name-path.js"></script>
+    <script src="assets/history.js"></script>
+    <script src="assets/host.js"></script>
+    <script src="assets/main.js"></script>
+  </body>
+</html>

@@ -1,9 +1,9 @@
-// Writes assets/history.js from this repository's git log: the ticks under the Rewind slider.
+// Writes lab/two-windows/assets/history.js from this repository's git log: the ticks under the Rewind slider.
 // Runs at deploy (see .github/workflows/pages.yml); run it by hand after committing to keep the file fresh.
 const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
-const out = path.join(__dirname, "..", "assets", "history.js");
+const out = path.join(__dirname, "..", "lab", "two-windows", "assets", "history.js");
 let lines = [];
 try {
   lines = execSync("git log --reverse --date=short --format=%h%x1f%ad%x1f%s", { encoding: "utf8" }).trim().split("\n").filter(Boolean);

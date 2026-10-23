@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Adham Momen — proof</title>
+    <meta name="description" content="Every claim on this page is a test that runs in your browser." />
+    <meta name="theme-color" content="#f6f5f1" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f6f5f1'/%3E%3Cpath d='M7 17l6 6 12-13' fill='none' stroke='%231a7f4b' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <link rel="preload" href="assets/fonts/BricolageGrotesque.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="assets/fonts/JetBrainsMono.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="assets/fonts.css" />
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#suites">Skip to the tests</a>
+    <div class="rail" aria-hidden="true"><div class="rail-fill"></div></div>
+
+    <header class="top">
+      <a class="mono top-name" href="#top" data-name>Adham Momen</a>
+      <nav class="mono top-nav" aria-label="Primary">
+        <a href="#s-this-page">this page</a>
+        <a href="#s-you">you</a>
+        <a href="#s-contact">contact</a>
+        <button type="button" class="btn" data-sound aria-pressed="false">sound</button>
+        <button type="button" class="btn btn-run" data-run>run again</button>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <p class="mono hero-meta"><span>(Portfolio — <span data-year></span>)</span><span>·</span><span class="live-dot"></span><span><span data-done>0</span>/<span data-total>0</span> tests run</span></p>
+        <h1 class="hero-name"><span data-first>Adham</span> <span data-last>Momen</span></h1>
+        <div class="hero-foot">
+          <p class="hero-premise" data-premise></p>
+          <p class="mono muted" data-role></p>
+        </div>
+        <div class="tally mono" aria-live="polite">
+          <span class="t-pass"><b data-pass>0</b> passed</span>
+          <span class="t-pending"><b data-pending>0</b> pending</span>
+          <span class="t-fail"><b data-fail>0</b> failed</span>
+          <span class="t-skip"><b data-skip>0</b> skipped</span>
+        </div>
+      </section>
+
+      <div id="suites"></div>
+
+      <section class="suite contact-extra" aria-label="Run the contact test">
+        <div class="contact-box">
+          <p class="claim">Run the last one yourself.</p>
+          <p class="contact-line"><a class="mail" data-mail href="#">email</a><span data-no-mail hidden class="muted">No address on this page yet. Find me on <a data-github href="https://github.com/adhammomen">GitHub</a>.</span></p>
+          <p class="mono contact-actions">
+            <button type="button" class="btn" data-c-start>I wrote to him — start the clock</button>
+            <button type="button" class="btn" data-c-replied hidden>he replied</button>
+            <button type="button" class="btn btn-quiet" data-c-reset hidden>reset</button>
+            <span class="muted" data-c-line></span>
+          </p>
+        </div>
+      </section>
+
+      <section class="verdict">
+        <p class="mono suite-idx">(end)</p>
+        <h2 class="verdict-line" data-verdict>running…</h2>
+        <p class="mono muted" data-ran></p>
+        <p class="verdict-actions">
+          <button type="button" class="btn btn-run" data-run>run it again</button>
+          <button type="button" class="btn" data-copy>copy the report</button>
+        </p>
+        <textarea class="report mono" data-report hidden readonly aria-label="The report as text"></textarea>
+        <p class="muted verdict-note">Nothing here is a screenshot. Reload and it all runs again, against whatever is true right now.</p>
+      </section>
+    </main>
+
+    <footer class="footer mono">
+      <span>© <span data-year></span> <span data-name></span></span>
+      <span class="muted">No framework. No tracking. Every claim a test.</span>
+      <a data-github href="https://github.com/adhammomen">github</a>
+    </footer>
+
+    <script src="assets/content.js"></script>
+    <script src="assets/history.js"></script>
+    <script src="assets/proof.js"></script>
+    <script src="assets/tests.js"></script>
+    <script src="assets/app.js"></script>
+  </body>
+</html>

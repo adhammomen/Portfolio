@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>About · Adham Momen</title>
+<meta name="description" content="I build the systems underneath and the surfaces people touch: platforms, servers, products and interfaces, from the first line to the box they run on.">
+<meta name="theme-color" content="#050607">
+<meta property="og:title" content="About · Adham Momen">
+<meta property="og:description" content="I build the systems underneath and the surfaces people touch: platforms, servers, products and interfaces, from the first line to the box they run on.">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="../assets/fonts/archivo-latin-standard-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../assets/fonts/ibm-plex-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../assets/fonts.css">
+<link rel="stylesheet" href="../assets/css/site.css">
+<script>document.documentElement.className = 'js';</script>
+<script src="../assets/vendor/gsap.min.js" defer></script>
+<script src="../assets/vendor/lenis.min.js" defer></script>
+<script type="module" src="../assets/js/app.js"></script>
+</head>
+<body data-page="about">
+<a class="skip" href="#main">Skip to content</a>
+<canvas class="canvas-gl" aria-hidden="true"></canvas>
+
+<div class="loader" aria-hidden="true">
+  <svg class="loader-lines" viewBox="-60 -40 220 180" preserveAspectRatio="xMidYMid meet"></svg>
+  <p class="loader-line mono"><span class="loader-text">Systems, made tangible.</span><span class="loader-caret"></span></p>
+  <p class="loader-count mono"><span>0</span>%</p>
+</div>
+
+<header class="hd">
+  <a class="hd-logo" href="../" data-link aria-label="Adham Momen, home"><svg class="mark hd-mark" viewBox="0 0 100 100" aria-hidden="true"><path class="mark-body" d="M43 0L57 0L92 100L73 100L50 34L27 100L8 100Z"/><path class="mark-bar" d="M29 66h42v10h-42Z"/></svg><span class="hd-name">Adham Momen</span></a>
+  <nav class="hd-nav mono" aria-label="Primary">
+    <a href="../work/" data-link data-nav="work">Work</a>
+    <a href="../about/" data-link data-nav="about">About</a>
+    <span class="hd-lab">Lab: <a href="../lab/two-windows/">Two Windows</a>, <a href="../lab/proof/">Proof</a></span>
+  </nav>
+  <div class="hd-right">
+    <button class="hd-sound mono" type="button" data-sound-toggle aria-pressed="false"><span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="hd-sound-label">Sound</span></button>
+    <a class="pill mono" href="../contact/" data-link data-nav="contact">Contact</a>
+    <button class="hd-menu" type="button" aria-expanded="false" aria-controls="menu" aria-label="Menu"><i></i><i></i></button>
+  </div>
+</header>
+
+<div class="menu" id="menu" hidden>
+  <nav class="menu-nav" aria-label="Menu">
+    <a href="../" data-link>Home</a>
+    <a href="../work/" data-link>Work</a>
+    <a href="../about/" data-link>About</a>
+    <a href="../contact/" data-link>Contact</a>
+  </nav>
+  <p class="menu-lab mono">Lab: <a href="../lab/two-windows/">Two Windows</a> · <a href="../lab/proof/">Proof</a></p>
+</div>
+
+<nav class="ruler mono" aria-label="Sections">
+  <ol>
+    <li data-to="hero"><button type="button">Top</button></li>
+    <li data-to="work"><button type="button">Work</button></li>
+    <li data-to="statement"><button type="button">Statement</button></li>
+    <li data-to="signal"><button type="button">Signal</button></li>
+    <li data-to="capabilities"><button type="button">Capabilities</button></li>
+    <li data-to="flagship"><button type="button">Ordium</button></li>
+  </ol>
+</nav>
+
+<aside class="dev mono" aria-label="Developer panel">
+  <div class="dev-head"><span>Mark.quaternion</span><button type="button" class="dev-fold" aria-expanded="true" aria-label="Fold panel">–</button></div>
+  <div class="dev-body">
+    <p class="dev-q"><span>0.00</span><span>0.00</span><span>0.00</span><span>1.00</span></p>
+    <canvas class="dev-gizmo" width="160" height="160" aria-label="Drag to rotate the mark"></canvas>
+    <label class="dev-row">frost<input type="range" min="0" max="1" step="0.01" value="0.18" data-dev="frost"></label>
+    <label class="dev-row">dispersion<input type="range" min="0" max="10" step="0.1" value="5" data-dev="dispersion"></label>
+    <button type="button" class="dev-reset">Reset quaternion</button>
+  </div>
+</aside>
+
+<main id="main" data-page="about" data-title="About · Adham Momen">
+
+  <section class="pg ab">
+    <header class="pg-head">
+      <p class="eyebrow mono">About</p>
+      <h1 class="pg-title" data-split>About</h1>
+    </header>
+    <div class="ab-grid">
+      <p class="ab-label mono">Who</p>
+      <div class="ab-lead"><p>Adham Momen, developer &amp; builder. I build the systems underneath and the surfaces people touch: platforms, servers, products and interfaces, from the first line to the box they run on.</p><p class="ab-quiet">Quiet where it should be, loud where it matters.</p></div>
+
+      <p class="ab-label mono">What I do</p>
+      <div class="ab-caps"><div><h2>Platforms</h2><p>Products from the database to the button: the API, the data model, sign-in, billing and the realtime parts in between.</p><ul class="mono"><li>Full-stack products</li><li>APIs &amp; data</li><li>Auth, billing, realtime</li></ul></div><div><h2>Infrastructure</h2><p>The box it all runs on. I keep my own servers alive, deploy them, automate them and watch them.</p><ul class="mono"><li>Self-hosted servers</li><li>Deploys &amp; automation</li><li>Monitoring</li></ul></div><div><h2>Interfaces</h2><p>The surface people touch: product design, creative development, WebGL and motion, like the page you are scrolling.</p><ul class="mono"><li>Product design</li><li>Creative development</li><li>WebGL &amp; motion</li></ul></div></div>
+
+      <p class="ab-label mono">Now</p>
+      <ul class="ab-now"><li><a href="../work/ordium/" data-link><span class="ab-now-t">Ordium</span><span class="code">Platform · Server</span><span class="status is-progress"><i></i>In progress</span></a></li><li><a href="../work/kingsmaker/" data-link><span class="ab-now-t">Kingsmaker</span><span class="code">Product</span><span class="status is-progress"><i></i>In progress</span></a></li></ul>
+
+      <p class="ab-label mono">This site</p>
+      <div class="ab-colophon"><p>Hand-built with three.js, GSAP and Lenis, no framework. The glass mark is extruded from an SVG in the browser and lit by an environment that is generated, not photographed. The three capability videos are rendered from shaders, and the sound is synthesized by a script in the repository.</p><p>Type: Archivo, IBM Plex Sans, IBM Plex Mono, Google Sans Code and Libre Caslon Display, all under the Open Font License.</p></div>
+    </div>
+  </section>
+</main>
+
+<footer class="ft">
+  <div class="ft-top">
+    <div class="ft-cols mono">
+      <ul><li><a href="../" data-link>Top</a></li><li><a href="../work/" data-link>Work</a></li><li><a href="../about/" data-link>About</a></li><li><a href="../contact/" data-link>Contact</a></li></ul>
+      <ul><li><a href="../lab/two-windows/">Two Windows</a></li><li><a href="../lab/proof/">Proof</a></li></ul>
+      <ul><li><a href="https://github.com/adhammomen" rel="noopener">GitHub <span class="arr" aria-hidden="true">↗</span></a></li><li><a href="mailto:adhammomen64@gmail.com">Email <span class="arr" aria-hidden="true">↗</span></a></li></ul>
+    </div>
+    <a class="ft-cta" href="../contact/" data-link><span class="ring" aria-hidden="true">↗</span><span class="mono">Contact</span></a>
+  </div>
+  <div class="ft-word" aria-hidden="true"><svg class="mark ft-mark" viewBox="0 0 100 100" aria-hidden="true"><path class="mark-body" d="M43 0L57 0L92 100L73 100L50 34L27 100L8 100Z"/><path class="mark-bar" d="M29 66h42v10h-42Z"/></svg><span>DHAM MOMEN</span></div>
+  <div class="ft-bottom mono"><span>© 2026 Adham Momen</span><span>Built by hand: three.js, GSAP, Lenis. Sound and video generated for this site.</span></div>
+</footer>
+
+<div class="soundbar mono" hidden>
+  <p><span class="soundbar-tag">▲ sound</span><span>This site has sound. Turn it on?</span></p>
+  <div class="soundbar-actions"><button type="button" class="pill" data-sound="on">Sound on</button><button type="button" class="link" data-sound="off">Continue without</button></div>
+</div>
+</body>
+</html>
