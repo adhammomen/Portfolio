@@ -45,7 +45,8 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(
 
 // ---------- pages ----------
 let page = null;
-const SUB = { sub: 1, wall: 0, word: 0, car: 0, cap: 0, curtain: 0, dissolve: 0, bar: 0, flat: 0, grid: 1, mx: 2.7, my: -1.25, mz: -1.5, ms: 0.75, frost: 0.38, spin: 0.6, mrx: 0, mry: 0, camX: 0, camY: 0, camZ: 7 };
+// inner pages: gradient, grid, and the mark small and far off to one side
+const SUB = { sub: 1, wall: 0, word: 0, car: 0, cap: 0, curtain: 0, dissolve: 0, bar: 0, flat: 0, grid: 1, mx: 4.2, my: -1.9, mz: -4, ms: 0.62, frost: 0.4, spin: 0.6, mrx: 0, mry: 0, camX: 0, camY: 0, camZ: 7 };
 function mount() {
   const main = document.getElementById('main');
   const kind = main.dataset.page;
@@ -57,7 +58,7 @@ function mount() {
     page = { home, update: (y) => home.update(y), destroy: () => home.destroy() };
   } else {
     const un = mountPage(main, { sound, lenis });
-    if (gl) gl.set(isNarrow() ? { ...SUB, mx: 0.9, my: -2.1, ms: 0.6 } : SUB);
+    if (gl) gl.set(isNarrow() ? { ...SUB, mx: 1.5, my: -3.2, ms: 0.5 } : SUB);
     page = { update: () => {}, destroy: un };
   }
 }

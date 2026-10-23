@@ -277,9 +277,9 @@ export class GL {
             vec2 uv = vUv; float split = .004 + uVel*.012;
             vec3 c = vec3(texture2D(uTex, uv + vec2(split*vEdge,0.)).r, texture2D(uTex, uv).g, texture2D(uTex, uv - vec2(split*vEdge,0.)).b);
             c *= mix(.22, 1., uFocus);
-            float e = pow(vEdge, 7.);
+            float e = pow(vEdge, 18.);
             vec3 irid = .5 + .5*cos(6.2832*(vUv.y*.8 + e*.6 + uTime*.05 + vec3(0.,.33,.67)));
-            c += irid*e*(.1 + uVel*.9);
+            c += irid*e*(.08 + uVel*.8);
             float frame = step(.006, vUv.x)*step(vUv.x, .994)*step(.01, vUv.y)*step(vUv.y, .99);
             c = mix(vec3(.5,.55,.6)*.35, c, frame);
             gl_FragColor = vec4(c*uAlpha, 1.);
@@ -410,7 +410,7 @@ export class GL {
         float d = length((vUv - .5)*ar);
         float rr = uReveal*1.25;
         col *= 1. - smoothstep(rr - .18, rr, d);
-        col += exp(-pow((d - rr + .09)*22., 2.))*vec3(1.,.85,.6)*.5*step(.001, uReveal)*step(uReveal, .999);
+        col += exp(-pow((d - rr + .09)*22., 2.))*vec3(1.,.85,.6)*.18*step(.001, uReveal)*step(uReveal, .999);
         col *= uFade;
         col = toSRGB(col);
         col += (hash(vUv*uRes + fract(uTime*7.)*100.) - .5)*.035;
@@ -553,7 +553,7 @@ export class GL {
     // carousel
     this.carousel.visible = S.car > 0.01;
     if (this.carousel.visible) {
-      this.carousel.scale.setScalar(this.w / this.h < 0.9 ? 0.62 : 1);
+      this.carousel.scale.setScalar(this.w / this.h < 0.9 ? 0.82 : 1);
       this.carousel.rotation.y = -S.carIdx * this.carStep;
       const vel = Math.min(1, Math.abs(this.velocity) * 0.02);
       this.panels.forEach((p, i) => {

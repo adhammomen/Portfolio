@@ -51,15 +51,16 @@ export class Home {
     const K = [
       [0, n ? { mx: 0, my: 0.55, mz: 0, ms: 0.85, spin: 1, frost: 0.14, wall: 1, mry: 0, camZ: 7 } : { mx: 1.05, my: 0.08, mz: 0, ms: 1.22, spin: 1, frost: 0.14, wall: 1, mry: 0, camZ: 7 }],
       [S.workintro.s + 0.2, { mx: 0, my: n ? 0.3 : 0.05, ms: n ? 0.8 : 1.0, wall: 0.75 }],
-      [S.work.s + 0.1, n ? { mx: 0.78, my: 2.05, ms: 0.2, wall: 0.38, frost: 0.1 } : { mx: 2.75, my: 1.32, ms: 0.3, wall: 0.38, frost: 0.1 }],
-      [S.work.e - 0.9, n ? { mx: 0.78, my: 2.05, ms: 0.2, wall: 0.38 } : { mx: 2.75, my: 1.32, ms: 0.3, wall: 0.38 }],
-      [S.workout.s + 0.25, { mx: 0, my: 0, ms: n ? 0.9 : 1.1, wall: 0.9, frost: 0.14 }],
+      // the mark steps aside while the projects have the stage, as the reference does with its logo
+      [S.work.s + 0.1, { mx: 0, my: 0.6, mz: -2, ms: 0.001, wall: 0.38, frost: 0.1 }],
+      [S.work.e - 0.9, { mx: 0, my: 0.6, mz: -2, ms: 0.001, wall: 0.38 }],
+      [S.workout.s + 0.25, { mx: 0, my: 0, mz: 0, ms: n ? 0.9 : 1.1, wall: 0.9, frost: 0.14 }],
       [S.workout.e, { ms: 4.2, frost: 0.42, wall: 1 }],
       [S.statement.s + 0.1, { ms: n ? 0.95 : 1.3, frost: 0.14, my: n ? 0.6 : 0.05, mx: 0, wall: 0.6, spin: 0.5 }],
       [S.signal.s + 0.1, { spin: 0, mry: 0, ms: n ? 0.95 : 1.3, my: n ? 0.8 : 0.05 }],
       [S.signalout.e - 0.2, { spin: 0, ms: n ? 0.9 : 1.15, my: n ? 0.6 : 0 }],
-      [S.capabilities.s + 0.1, n ? { mx: 0, my: 0, ms: 0.001, wall: 0.22, spin: 1 } : { mx: 2.9, my: 1.35, ms: 0.26, wall: 0.22, spin: 1 }],
-      [S.capabilities.e - 0.6, n ? { mx: 0, my: 0, ms: 0.001, wall: 0.22 } : { mx: 2.9, my: 1.35, ms: 0.26, wall: 0.22 }],
+      [S.capabilities.s + 0.1, { mx: 0, my: 0, ms: 0.001, wall: 0.22, spin: 1 }],
+      [S.capabilities.e - 0.6, { mx: 0, my: 0, ms: 0.001, wall: 0.22 }],
       [S.flagship.s + 0.3, { mx: 0, my: n ? 0.4 : 0, mz: -1.2, ms: n ? 1.1 : 1.7, frost: 0.55, wall: 0.5 }],
       [S.flagship.e - 0.3, { mx: 0, my: n ? 0.4 : 0, mz: -1.2, ms: n ? 1.1 : 1.7, frost: 0.55, wall: 0.5 }],
       [S.outro.s + 0.55, { mx: 0, my: 0, mz: 0, ms: 0.5, frost: 0.12, wall: 0.12, spin: 0, mry: 0 }],   // patched each frame to land on the wordmark
@@ -138,7 +139,7 @@ export class Home {
     const after = p > S.signalout.e;
     const target = {
       ...t,
-      word: win(p, S.workintro.s, S.work.s - 0.1, 0.45),
+      word: win(p, S.workintro.s, S.work.s - 0.4, 0.4),
       wordX: lerp(this.narrow ? 2.5 : 6, this.narrow ? -2.5 : -6, clamp((p - (S.workintro.s - 0.6)) / (S.workintro.len + 1))),
       car: win(p, S.work.s - 0.05, S.workout.s - 0.1, 0.4),
       carIdx: clamp(p - (S.work.s + 0.3), 0, nW - 1),
