@@ -20,7 +20,7 @@ window.PORTFOLIO = {
   ],
   links: {
     github: "https://github.com/adhammomen",
-    email: "", // add an address: the host circles it for the visitor at the end
+    email: "adhammomen64@gmail.com", // the host circles it for the visitor at the end
   },
   host: {
     timezone: "", // e.g. "Africa/Cairo" — with this set, the host knows what time it is where you are

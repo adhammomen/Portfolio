@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Two Windows · Adham Momen</title>
+<meta name="description" content="A portfolio bigger than a browser window. Open a second one and both become holes onto the same desk, with a cursor host walking between them.">
+<meta name="theme-color" content="#050607">
+<meta property="og:title" content="Two Windows · Adham Momen">
+<meta property="og:description" content="A portfolio bigger than a browser window. Open a second one and both become holes onto the same desk, with a cursor host walking between them.">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="../../assets/fonts/archivo-latin-standard-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../assets/fonts/ibm-plex-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../../assets/fonts.css">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<script>document.documentElement.className = 'js';</script>
+<script src="../../assets/vendor/gsap.min.js" defer></script>
+<script src="../../assets/vendor/lenis.min.js" defer></script>
+<script type="module" src="../../assets/js/app.js"></script>
+</head>
+<body data-page="detail">
+<a class="skip" href="#main">Skip to content</a>
+<canvas class="canvas-gl" aria-hidden="true"></canvas>
+
+<div class="loader" aria-hidden="true">
+  <svg class="loader-lines" viewBox="-60 -40 220 180" preserveAspectRatio="xMidYMid meet"></svg>
+  <p class="loader-line mono"><span class="loader-text">Systems, made tangible.</span><span class="loader-caret"></span></p>
+  <p class="loader-count mono"><span>0</span>%</p>
+</div>
+
+<header class="hd">
+  <a class="hd-logo" href="../../" data-link aria-label="Adham Momen, home"><svg class="mark hd-mark" viewBox="0 0 100 100" aria-hidden="true"><path class="mark-body" d="M43 0L57 0L92 100L73 100L50 34L27 100L8 100Z"/><path class="mark-bar" d="M29 66h42v10h-42Z"/></svg><span class="hd-name">Adham Momen</span></a>
+  <nav class="hd-nav mono" aria-label="Primary">
+    <a href="../../work/" data-link data-nav="work">Work</a>
+    <a href="../../about/" data-link data-nav="about">About</a>
+    <span class="hd-lab">Lab: <a href="../../lab/two-windows/">Two Windows</a>, <a href="../../lab/proof/">Proof</a></span>
+  </nav>
+  <div class="hd-right">
+    <button class="hd-sound mono" type="button" data-sound-toggle aria-pressed="false"><span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="hd-sound-label">Sound</span></button>
+    <a class="pill mono" href="../../contact/" data-link data-nav="contact">Contact</a>
+    <button class="hd-menu" type="button" aria-expanded="false" aria-controls="menu" aria-label="Menu"><i></i><i></i></button>
+  </div>
+</header>
+
+<div class="menu" id="menu" hidden>
+  <nav class="menu-nav" aria-label="Menu">
+    <a href="../../" data-link>Home</a>
+    <a href="../../work/" data-link>Work</a>
+    <a href="../../about/" data-link>About</a>
+    <a href="../../contact/" data-link>Contact</a>
+  </nav>
+  <p class="menu-lab mono">Lab: <a href="../../lab/two-windows/">Two Windows</a> · <a href="../../lab/proof/">Proof</a></p>
+</div>
+
+<nav class="ruler mono" aria-label="Sections">
+  <ol>
+    <li data-to="hero"><button type="button">Top</button></li>
+    <li data-to="work"><button type="button">Work</button></li>
+    <li data-to="statement"><button type="button">Statement</button></li>
+    <li data-to="signal"><button type="button">Signal</button></li>
+    <li data-to="capabilities"><button type="button">Capabilities</button></li>
+    <li data-to="flagship"><button type="button">Ordium</button></li>
+  </ol>
+</nav>
+
+<aside class="dev mono" aria-label="Developer panel">
+  <div class="dev-head"><span>Mark.quaternion</span><button type="button" class="dev-fold" aria-expanded="true" aria-label="Fold panel">–</button></div>
+  <div class="dev-body">
+    <p class="dev-q"><span>0.00</span><span>0.00</span><span>0.00</span><span>1.00</span></p>
+    <canvas class="dev-gizmo" width="160" height="160" aria-label="Drag to rotate the mark"></canvas>
+    <label class="dev-row">frost<input type="range" min="0" max="1" step="0.01" value="0.18" data-dev="frost"></label>
+    <label class="dev-row">dispersion<input type="range" min="0" max="10" step="0.1" value="5" data-dev="dispersion"></label>
+    <button type="button" class="dev-reset">Reset quaternion</button>
+  </div>
+</aside>
+
+<main id="main" data-page="detail" data-title="Two Windows · Adham Momen">
+
+  <article class="pg dt">
+    <p class="dt-ghost" aria-hidden="true">Two Windows</p>
+    <header class="dt-head">
+      <a class="dt-back mono" href="../../work/" data-link>← Work</a>
+      <h1 class="dt-title" data-split>Two Windows</h1>
+      <p class="dt-lead">A portfolio bigger than a browser window. Open a second one and both become holes onto the same desk, with a cursor host walking between them.</p>
+      <dl class="dt-spec mono">
+        <div><dt>Year</dt><dd>2026</dd></div>
+        <div><dt>Kind</dt><dd>Experiment · Browser APIs</dd></div>
+        <div><dt>Status</dt><dd><span class="status is-shipped"><i></i>Shipped</span></dd></div>
+      </dl>
+      <p class="dt-links mono"><a class="dt-link" href="../../lab/two-windows/"><span class="ring" aria-hidden="true">↗</span>Open it</a><a class="dt-link" href="https://github.com/adhammomen/Portfolio" rel="noopener"><span class="ring" aria-hidden="true">↗</span>Source</a></p>
+    </header>
+    <div class="dt-body">
+      <figure class="dt-fig"><picture class=""><source srcset="../../assets/img/work/two-windows-1.avif" type="image/avif"><img src="../../assets/img/work/two-windows-1.jpg" alt="Two Windows, image 1" width="1600" height="900" decoding="async"></picture></figure>
+      <div class="dt-text"><p>The page pins itself to the monitor. Open a second window and the page reflows to the size of the screen; every window shows the slice of it that sits where the window sits. Drag one across the screen and it slides across the page.</p><p>A second cursor, labelled with my name, gives the tour: it writes my name in pen, walks between the windows, sketches the architecture of a project on the other sheet and moves your window into place when the browser allows it.</p><p>Dragged over the first window, a window becomes an x-ray of the page; made small, it becomes a loupe. The first window runs the show and the others mirror it over a BroadcastChannel, with no server.</p></div>
+      <figure class="dt-fig"><picture class=""><source srcset="../../assets/img/work/two-windows-2.avif" type="image/avif"><img src="../../assets/img/work/two-windows-2.jpg" alt="Two Windows, image 2" width="1600" height="900" loading="lazy" decoding="async"></picture></figure>
+    </div>
+    <a class="dt-next" href="../../work/proof/" data-link><span class="mono">Next project</span><span class="dt-next-title">Proof →</span></a>
+  </article>
+</main>
+
+<footer class="ft">
+  <div class="ft-top">
+    <div class="ft-cols mono">
+      <ul><li><a href="../../" data-link>Top</a></li><li><a href="../../work/" data-link>Work</a></li><li><a href="../../about/" data-link>About</a></li><li><a href="../../contact/" data-link>Contact</a></li></ul>
+      <ul><li><a href="../../lab/two-windows/">Two Windows</a></li><li><a href="../../lab/proof/">Proof</a></li></ul>
+      <ul><li><a href="https://github.com/adhammomen" rel="noopener">GitHub <span class="arr" aria-hidden="true">↗</span></a></li><li><a href="mailto:adhammomen64@gmail.com">Email <span class="arr" aria-hidden="true">↗</span></a></li></ul>
+    </div>
+    <a class="ft-cta" href="../../contact/" data-link><span class="ring" aria-hidden="true">↗</span><span class="mono">Contact</span></a>
+  </div>
+  <div class="ft-word" aria-hidden="true"><svg class="mark ft-mark" viewBox="0 0 100 100" aria-hidden="true"><path class="mark-body" d="M43 0L57 0L92 100L73 100L50 34L27 100L8 100Z"/><path class="mark-bar" d="M29 66h42v10h-42Z"/></svg><span>DHAM MOMEN</span></div>
+  <div class="ft-bottom mono"><span>© 2026 Adham Momen</span><span>Built by hand: three.js, GSAP, Lenis. Sound and video generated for this site.</span></div>
+</footer>
+
+<div class="soundbar mono" hidden>
+  <p><span class="soundbar-tag">▲ sound</span><span>This site has sound. Turn it on?</span></p>
+  <div class="soundbar-actions"><button type="button" class="pill" data-sound="on">Sound on</button><button type="button" class="link" data-sound="off">Continue without</button></div>
+</div>
+</body>
+</html>

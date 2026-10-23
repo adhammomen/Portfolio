@@ -1,0 +1,209 @@
+<!doctype html>
+<meta charset="utf-8">
+<body style="margin:0;background:#000">
+<canvas id="c" width="1600" height="900"></canvas>
+<script>
+// Three seamless 8 s loops. Time u runs 0..1 and every animated term is periodic in u, so frame 240 == frame 0.
+const COMMON = `
+#extension GL_OES_standard_derivatives : enable
+precision highp float;
+uniform vec2 R; uniform float u;
+#define TAU 6.28318530718
+const vec3 AMBER = vec3(1.0, 0.706, 0.227);
+const vec3 ICE = vec3(0.86, 0.92, 0.97);
+float h21(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
+float n3(vec3 p){ vec3 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+  float a=h21(i.xy+i.z*17.1), b=h21(i.xy+vec2(1,0)+i.z*17.1), c=h21(i.xy+vec2(0,1)+i.z*17.1), d=h21(i.xy+vec2(1,1)+i.z*17.1);
+  float e=h21(i.xy+(i.z+1.)*17.1), f2=h21(i.xy+vec2(1,0)+(i.z+1.)*17.1), g=h21(i.xy+vec2(0,1)+(i.z+1.)*17.1), hh=h21(i.xy+vec2(1,1)+(i.z+1.)*17.1);
+  return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y), mix(mix(e,f2,f.x),mix(g,hh,f.x),f.y), f.z); }
+// noise that loops: time walks a circle through the third axis pair
+float nl(vec2 p, float r){ float a = u*TAU; return n3(vec3(p + r*vec2(cos(a), sin(a)), r*sin(a)+r)); }
+float grain(vec2 p){ return h21(p + fract(u*37.)*91.) - .5; }
+vec3 finish(vec3 col, vec2 uv){ float v = smoothstep(1.25, .35, length((uv-.5)*vec2(1.25,1.))); col *= mix(.55, 1., v); col += grain(uv*R)*.035; return col; }
+`;
+
+const SHADERS = {
+// 1 · Platforms: three stacked isometric slabs, a grid on each, packets travelling the grid lines between layers.
+platforms: COMMON + `
+vec2 iso(vec2 p){ return vec2(p.x*.866 - p.y*.866, p.x*.5 + p.y*.5); }
+vec2 isoInv(vec2 q){ return vec2(q.x/1.732 + q.y, q.y - q.x/1.732); }
+void main(){
+  vec2 uv = gl_FragCoord.xy/R; vec2 p = (gl_FragCoord.xy - .5*R)/R.y * 1.35;
+  vec3 col = vec3(.018,.022,.028) + .03*vec3(.4,.5,.6)*(1.-length(p));
+  for(int L=0; L<3; L++){
+    float fl = float(L);
+    float y0 = -.22 + fl*.2 + .012*sin(u*TAU + fl*1.7);       // slab height, breathing
+    vec2 q = isoInv(vec2(p.x, (p.y - y0)*1.9));                  // into slab plane coords
+    float inside = step(abs(q.x), .62) * step(abs(q.y), .62);
+    if(inside < .5) continue;
+    vec2 g = q*10.; vec2 gf = abs(fract(g)-.5); float line = smoothstep(.47, .5, max(gf.x, gf.y));
+    float edge = smoothstep(.6, .62, max(abs(q.x), abs(q.y)));
+    float shade = .06 + .05*fl;
+    vec3 slab = vec3(shade) * vec3(.85,.92,1.);
+    // packets: one per row, moving along x; integer speeds keep the loop seamless
+    vec2 cell = floor(g);
+    float row = cell.y; float sp = 1. + mod(row + fl, 3.);
+    float pos = fract(u*sp + h21(vec2(row, fl))) * 12. - 6.;
+    float pk = exp(-pow((g.x - pos)*1.4, 2.)) * smoothstep(.12, .0, abs(fract(g.y)-.5)) ;
+    bool amber = mod(row + fl*2., 5.) < 1.;
+    vec3 pc = amber ? AMBER : ICE;
+    col = mix(col, slab, .92);
+    col += line * ICE * (.10 + .05*fl);
+    col += edge * ICE * .35;
+    col += pk * pc * (amber ? 1.4 : .7);
+  }
+  // vertical links between layers
+  for(int k=0;k<5;k++){ float fk=float(k); float x = -.45 + fk*.22;
+    float d = abs(p.x - x); float on = smoothstep(.004,.0,d) * step(-.2, p.y) * step(p.y, .2);
+    float pulse = fract(u*2. + fk*.37); float yy = mix(-.2, .2, pulse);
+    col += on*ICE*.12 + exp(-pow((p.y-yy)*40.,2.))*smoothstep(.01,.0,d)*AMBER*1.2; }
+  gl_FragColor = vec4(finish(col, uv), 1.);
+}`,
+
+// 2 · Infrastructure: a rack seen at an angle, rows of status LEDs blinking in looped patterns, a light sweep.
+infrastructure: COMMON + `
+void main(){
+  vec2 uv = gl_FragCoord.xy/R; vec2 p = (gl_FragCoord.xy - .5*R)/R.y;
+  // slight perspective: rows converge to the right
+  float persp = 1. + p.x*.35; vec2 q = vec2(p.x, p.y*persp);
+  vec3 col = vec3(.012,.014,.017);
+  float units = 14.;
+  vec2 g = vec2(q.x*2.2, q.y*units*1.05); vec2 id = floor(g); vec2 f = fract(g);
+  float inRack = step(abs(q.x), .62) * step(abs(q.y), .44);
+  // unit faceplates
+  float plate = smoothstep(.04,.06,f.y)*smoothstep(.96,.94,f.y);
+  col += inRack * plate * vec3(.045,.05,.058);
+  // LEDs: 22 per unit row
+  vec2 lg = vec2(q.x*30., g.y); vec2 lid = floor(lg); vec2 lf = fract(lg) - .5;
+  float r = h21(lid + 3.1);
+  float k = floor(1. + r*4.);                         // integer blink rate
+  float blink = step(.5, fract(u*k + r*7.)) ;
+  float steady = step(.82, r);                        // some stay lit
+  float on = max(blink*step(.35, r), steady) * inRack * step(abs(lf.y), .5);
+  float led = smoothstep(.16, .07, length(lf*vec2(1., 2.2)));
+  bool amber = h21(lid+9.7) > .78;
+  vec3 lc = amber ? AMBER : vec3(.55,.9,1.);
+  float lit = led * on * step(.2, fract(lg.x/3.)); // gaps between LED groups
+  col += lit * lc * 1.6;
+  col += lit * lc * .25 * smoothstep(.5,.0,length(lf)); // bloom-ish
+  // sweep of light across the rack, once per loop
+  float sweep = exp(-pow((q.x - mix(-.9, .9, u))*5., 2.));
+  col += inRack * sweep * vec3(.06,.07,.08);
+  // rails
+  col += inRack * smoothstep(.006,.0,abs(abs(q.x)-.62)) * .25;
+  col += (1.-inRack) * .02*vec3(.5,.6,.7)*(1.-length(p));
+  gl_FragColor = vec4(finish(col, uv), 1.);
+}`,
+
+// 3 · Interfaces: domain-warped glass gradient with thin UI frames drifting on looped paths.
+interfaces: COMMON + `
+float sdBox(vec2 p, vec2 b, float r){ vec2 d = abs(p)-b+r; return length(max(d,0.)) + min(max(d.x,d.y),0.) - r; }
+void main(){
+  vec2 uv = gl_FragCoord.xy/R; vec2 p = (gl_FragCoord.xy - .5*R)/R.y;
+  vec2 w = p*1.6;
+  w += .32*vec2(nl(w*1.3, .6), nl(w*1.3+7.7, .6));
+  float n = nl(w*1.7, .9);
+  vec3 a = vec3(.022,.026,.034), b = vec3(.085,.105,.135), c = vec3(.40,.47,.55);
+  vec3 col = mix(a, b, smoothstep(.2,.8,n));
+  // iridescent ridges
+  float ridge = smoothstep(.02,.0,abs(fract(n*6.)-.5)-.47);
+  vec3 irid = .5 + .5*cos(TAU*(n*1.5 + vec3(0.,.33,.67)));
+  col += ridge*irid*.06;
+  col = mix(col, c, pow(smoothstep(.6,.95,n),2.)*.35);
+  // UI frames
+  for(int i=0;i<4;i++){ float fi=float(i);
+    vec2 c0 = vec2(-.55 + fi*.37, .1*sin(fi*2.1)) + .08*vec2(cos(u*TAU + fi), sin(u*TAU*1. + fi*1.3));
+    vec2 sz = vec2(.13 + .05*h21(vec2(fi)), .09 + .05*h21(vec2(fi,2.)));
+    float d = sdBox(p - c0, sz, .018);
+    col = mix(col, col*1.25 + .03, smoothstep(.002,.0,d)*.6);     // glass fill
+    col += smoothstep(.0035,.0,abs(d)) * ICE * .55;                // outline
+    // a header bar and two text lines
+    float hb = sdBox(p - c0 - vec2(0., sz.y-.022), vec2(sz.x-.02, .006), .003);
+    col += smoothstep(.002,.0,hb) * (i==1 ? AMBER : ICE*.5);
+    for(int j=0;j<2;j++){ float fj=float(j); float tl = sdBox(p - c0 - vec2(-sz.x*.25, sz.y-.06-fj*.03), vec2(sz.x*.6 - fj*.03, .003), .002); col += smoothstep(.002,.0,tl)*ICE*.25; }
+  }
+  // cursor
+  vec2 cp = vec2(.35*cos(u*TAU), .22*sin(u*TAU*2.)) ;
+  vec2 cq = p - cp; float cur = step(0., cq.x)*step(cq.y, 0.)*step(-cq.y, cq.x*2.2+.0)*step(cq.x, .03)*step(-.05, cq.y);
+  col = mix(col, vec3(1.), cur*.9);
+  gl_FragColor = vec4(finish(col, uv), 1.);
+}`,
+
+// 4 · Ordium (still): an orbital system, the left half built in glass and light, the right half still blueprint.
+ordium: COMMON + `
+float ring(vec2 p, float r, float w){ return smoothstep(w, 0., abs(length(p)-r)); }
+void main(){
+  vec2 uv = gl_FragCoord.xy/R; vec2 p = (gl_FragCoord.xy - .5*R)/R.y;
+  float tilt = .42; vec2 q = vec2(p.x, p.y/tilt);           // rings seen at an angle
+  float ang = atan(q.y, q.x); float built = smoothstep(.15, -.15, p.x + .08*sin(u*TAU));
+  vec3 col = vec3(.016,.019,.024) + vec3(.02,.025,.03)*(1.-length(p));
+  // blueprint grid on the unbuilt side
+  vec2 g = abs(fract(p*18.)-.5); float grid = smoothstep(.48,.5,max(g.x,g.y));
+  col += (1.-built)*grid*vec3(.05,.07,.09);
+  for(int i=0;i<6;i++){ float fi=float(i); float r = .16 + fi*.085;
+    float w = .0028; float rr = ring(q, r, w*1.6/tilt);
+    float dash = step(.5, fract(ang*(18.+fi*6.)/TAU));
+    col += rr * mix(dash*vec3(.35,.45,.55)*.6, vec3(.82,.88,.94)*.9, built);
+    // nodes riding each ring
+    for(int k=0;k<5;k++){ float fk=float(k); float a = fk*TAU/5. + fi*.7 + u*TAU*(fi>2.?1.:-1.);
+      vec2 np = vec2(cos(a), sin(a))*r; np.y *= tilt;
+      float d = length(p - np); float b = smoothstep(.5, -.2, np.x + .0);
+      bool amber = mod(fi + fk, 7.) < 1.;
+      vec3 nc = amber ? AMBER : ICE;
+      col += exp(-d*d*9000.) * nc * mix(.25, 1.6, b) + exp(-d*d*600.)*nc*.08*b;
+    }
+  }
+  // core
+  float c = length(p); col += exp(-c*c*120.)*vec3(.9,.95,1.)*.9 + exp(-c*c*12.)*vec3(.2,.25,.3)*.3;
+  // construction lines
+  col += smoothstep(.0015,.0,abs(p.y))*.08 + smoothstep(.0015,.0,abs(p.x))*.05*(1.-built);
+  gl_FragColor = vec4(finish(col, uv), 1.);
+}`,
+
+// 5 · Kingsmaker (still): a board laid tile by tile toward the horizon, one square lit amber, the rest still lines.
+kingsmaker: COMMON + `
+const float HZ = .2;                                  // horizon height
+vec2 toScreen(vec2 b){ float z = b.y + .35; return vec2(b.x/(z*1.05), HZ - .34/z); }
+void main(){
+  vec2 uv = gl_FragCoord.xy/R; vec2 p = (gl_FragCoord.xy - .5*R)/R.y;
+  vec3 col = vec3(.014,.016,.02);
+  col += vec3(.05,.06,.075)*exp(-abs(p.y-HZ)*9.);
+  vec2 litCell = vec2(1., 2.);
+  if(p.y < HZ - .001){
+    float z = .34/(HZ - p.y);
+    vec2 b = vec2(p.x*z*1.05, z - .35);
+    vec2 cell = floor(b*1.6); vec2 f = fract(b*1.6);
+    float inBoard = step(abs(cell.x+.5), 4.) * step(0., cell.y) * step(cell.y, 13.);
+    float laid = step(cell.y + h21(cell)*2.5, 5.5 + 2.*u);
+    float px = fwidth(b.x*1.6)*1.2;
+    float lines = smoothstep(px, .0, min(min(f.x,1.-f.x), min(f.y,1.-f.y)));
+    float dark = mod(cell.x + cell.y, 2.);
+    vec3 tile = mix(vec3(.13,.14,.16), vec3(.035,.04,.045), dark);
+    tile += vec3(.05,.06,.07)*(1.-f.y)*(1.-dark);
+    bool lit = cell == litCell;
+    float fog = exp(-z*.09);
+    col = mix(col, lit ? AMBER : tile, laid*inBoard*fog);
+    col += lines*inBoard*vec3(.35,.42,.5)*(laid>.5 ? .22 : .55)*fog;
+  }
+  vec2 c = toScreen((litCell + .5)/1.6);
+  float w = .045 / (c.y < HZ ? 1. : 1.);
+  float beam = smoothstep(w, 0., abs(p.x - c.x)) * step(c.y, p.y) * exp(-(p.y - c.y)*2.2);
+  col += beam*AMBER*.28;
+  col += exp(-pow(length((p - c)*vec2(1., 3.)), 2.)*200.)*AMBER*.3;
+  gl_FragColor = vec4(finish(col, uv), 1.);
+}`,
+};
+
+const gl = document.getElementById('c').getContext('webgl', { preserveDrawingBuffer: true, antialias: false }); gl.getExtension('OES_standard_derivatives');
+const vs = 'attribute vec2 a; void main(){ gl_Position = vec4(a,0.,1.); }';
+function prog(fs) {
+  const p = gl.createProgram();
+  for (const [t, s] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) { const sh = gl.createShader(t); gl.shaderSource(sh, s); gl.compileShader(sh); if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); gl.attachShader(p, sh); }
+  gl.linkProgram(p); return p;
+}
+const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+let P = null;
+window.use = (name) => { P = prog(SHADERS[name]); gl.useProgram(P); const a = gl.getAttribLocation(P, 'a'); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0); gl.uniform2f(gl.getUniformLocation(P, 'R'), window.W || 1280, window.H || 720); return true; };
+window.frame = (u) => { gl.uniform1f(gl.getUniformLocation(P, 'u'), u); gl.drawArrays(gl.TRIANGLES, 0, 3); gl.finish(); return document.getElementById('c').toDataURL('image/jpeg', 0.95); };
+</script>
+</body>
