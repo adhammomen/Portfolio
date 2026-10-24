@@ -77,12 +77,16 @@ function makeEnvironment(renderer) {
   return env;
 }
 
-// ---------- mark geometry ----------
-function markShapes() {
-  const body = new THREE.Shape(MARK.body.map(([x, y]) => new THREE.Vector2(mx(x), my(y))));
-  const b = MARK.bar;
-  const bar = new THREE.Shape([new THREE.Vector2(mx(b.x), my(b.y)), new THREE.Vector2(mx(b.x + b.w), my(b.y)), new THREE.Vector2(mx(b.x + b.w), my(b.y + b.h)), new THREE.Vector2(mx(b.x), my(b.y + b.h))]);
-  return { body, bar };
+// ---------- mark geometry: one rounded slab per floor ----------
+function slabShape(sl) {
+  const x0 = mx(sl.x), x1 = mx(sl.x + sl.w), y0 = my(sl.y + sl.h), y1 = my(sl.y);
+  const r = Math.min(MARK.radius / 50, (x1 - x0) / 2, (y1 - y0) / 2);
+  const sh = new THREE.Shape();
+  sh.moveTo(x0 + r, y0); sh.lineTo(x1 - r, y0); sh.quadraticCurveTo(x1, y0, x1, y0 + r);
+  sh.lineTo(x1, y1 - r); sh.quadraticCurveTo(x1, y1, x1 - r, y1);
+  sh.lineTo(x0 + r, y1); sh.quadraticCurveTo(x0, y1, x0, y1 - r);
+  sh.lineTo(x0, y0 + r); sh.quadraticCurveTo(x0, y0, x0 + r, y0);
+  return sh;
 }
 
 // a little noise texture for the frosted variation in the glass
@@ -172,10 +176,6 @@ export class GL {
   }
 
   buildMark() {
-    const { body, bar } = markShapes();
-    const ex = { depth: 0.36, bevelEnabled: true, bevelThickness: 0.07, bevelSize: 0.045, bevelSegments: 6, curveSegments: 1 };
-    const gBody = new THREE.ExtrudeGeometry(body, ex); gBody.translate(0, 0, -0.18);
-    const gBar = new THREE.ExtrudeGeometry(bar, { ...ex, depth: 0.3, bevelThickness: 0.05, bevelSize: 0.03 }); gBar.translate(0, 0, 0.02);
     this.frostMap = noiseTexture();
     this.glass = new THREE.MeshPhysicalMaterial({
       color: 0xffffff, metalness: 0, roughness: 0.14, roughnessMap: this.frostMap,
@@ -189,13 +189,31 @@ export class GL {
       iridescence: 0.4, iridescenceIOR: 1.3, attenuationColor: AMBER, attenuationDistance: 0.6,
       emissive: AMBER, emissiveIntensity: 0.12, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.6, transparent: true,
     });
-    this.markBody = new THREE.Mesh(gBody, this.glass);
-    this.markBar = new THREE.Mesh(gBar, this.barGlass);
-    this.mark = new THREE.Group(); this.mark.add(this.markBody, this.markBar);
+
+    // each floor is its own glass slab, so the mark can be built, stacked and taken apart
+    const ex = { depth: 0.34, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.035, bevelSegments: 5, curveSegments: 4 };
+    this.mark = new THREE.Group();
+    this.outline = new THREE.Group();
+    this.outlineMat = new THREE.LineBasicMaterial({ color: INK, transparent: true, opacity: 0.7 });
+    this.outlineBarMat = new THREE.LineBasicMaterial({ color: new THREE.Color('#c27a10'), transparent: true, opacity: 0.9 });
+    this.slabs = MARK.slabs.map((sl) => {
+      const shape = slabShape(sl);
+      const g = new THREE.ExtrudeGeometry(shape, ex); g.translate(0, 0, -0.17);
+      const mesh = new THREE.Mesh(g, sl.amber ? this.barGlass : this.glass);
+      this.mark.add(mesh);
+      const flat = new THREE.ExtrudeGeometry(shape, { depth: 0.34, bevelEnabled: false }); flat.translate(0, 0, -0.17);
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(flat, 20), sl.amber ? this.outlineBarMat : this.outlineMat);
+      this.outline.add(edges);
+      return { mesh, edges, floor: sl.floor, amber: sl.amber };
+    });
+    this.markBar = this.slabs.find((s) => s.amber).mesh;
+    this.outlineBar = this.slabs.find((s) => s.amber).edges;
+    this.assemble = 1;   // 0 → 1 stacks the floors into place, bottom first (played after the loader)
     this.markPivot = new THREE.Group(); this.markPivot.add(this.mark);
     this.dark.add(this.markPivot);
+    this.light.add(this.outline);
 
-    // the signal bar: a long emissive bar that grows out of the crossbar (present in both scenes so the dissolve is seamless)
+    // the signal bar: a long emissive bar that grows out of the amber floor (present in both scenes so the dissolve is seamless)
     const b = MARK.bar;
     this.barRest = { x: mx(b.x + b.w / 2), y: my(b.y + b.h / 2), w: (b.w / 50), h: (b.h / 50) };
     const barGeo = new THREE.BoxGeometry(1, 1, 0.3);
@@ -203,17 +221,6 @@ export class GL {
     this.signalDark = new THREE.Mesh(barGeo, this.signalMat);
     this.signalLight = new THREE.Mesh(barGeo, this.signalMat);
     this.dark.add(this.signalDark); this.light.add(this.signalLight);
-
-    // flat outline geometry (no bevel) for the light passage
-    const gFlat = new THREE.ExtrudeGeometry(body, { depth: 0.36, bevelEnabled: false }); gFlat.translate(0, 0, -0.18);
-    const gFlatBar = new THREE.ExtrudeGeometry(bar, { depth: 0.3, bevelEnabled: false }); gFlatBar.translate(0, 0, 0.02);
-    this.outlineMat = new THREE.LineBasicMaterial({ color: INK, transparent: true, opacity: 0.7 });
-    this.outlineBarMat = new THREE.LineBasicMaterial({ color: new THREE.Color('#c27a10'), transparent: true, opacity: 0.9 });
-    this.outline = new THREE.Group();
-    this.outline.add(new THREE.LineSegments(new THREE.EdgesGeometry(gFlat, 20), this.outlineMat));
-    this.outlineBar = new THREE.LineSegments(new THREE.EdgesGeometry(gFlatBar, 20), this.outlineBarMat);
-    this.outline.add(this.outlineBar);
-    this.light.add(this.outline);
   }
 
   buildWall() {
@@ -531,6 +538,18 @@ export class GL {
       m.scale.set(r.w * s * (1 + ease * 60), r.h * s * (1 - 0.35 * ease), 0.3 * s);
     }
     this.markBar.visible = sb < 0.05;
+
+    // floors: stack into place from the bottom up, then breathe a little apart in depth so the layers read
+    const top = MARK.floors - 1;
+    for (const sl of this.slabs) {
+      const k = Math.min(1, Math.max(0, this.assemble * 1.7 - (top - sl.floor) * 0.1));
+      const e = 1 - Math.pow(1 - k, 3);
+      const drift = Math.sin(t * 0.9 + sl.floor * 0.8) * 0.018 * S.spin;
+      sl.mesh.position.set(0, (1 - e) * 0.9, (1 - e) * 0.6 + drift);
+      sl.mesh.rotation.z = (1 - e) * (sl.floor % 2 ? 0.08 : -0.08);
+      sl.mesh.scale.setScalar(0.001 + 0.999 * Math.min(1, k * 3));
+      sl.edges.position.copy(sl.mesh.position); sl.edges.rotation.copy(sl.mesh.rotation); sl.edges.scale.copy(sl.mesh.scale);
+    }
 
     // outline copy of the mark for the light scene
     this.outline.position.copy(this.markPivot.position);

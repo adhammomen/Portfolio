@@ -1,6 +1,6 @@
 # Adham Momen: portfolio
 
-One glass mark, one long scroll. The site is a single WebGL canvas behind plain HTML: a refractive glass "A" whose crossbar is a cursor carries the whole homepage, changing role section by section, from a lens over a wall of screens to a blueprint outline on a light page to a signal bar to the first letter of the name in the footer. No framework and no build step. It deploys to GitHub Pages as static files.
+One glass mark, one long scroll. The site is a single WebGL canvas behind plain HTML: an A built from seven stacked glass floors carries the whole homepage: the floors stack into place when the site loads, act as a lens over a wall of screens, turn into a blueprint outline on the light page, give up their amber floor as the signal bar, and land as the first letter of the name in the footer. No framework and no build step. It deploys to GitHub Pages as static files.
 
 The direction comes from a study of alche.studio and four similar studio sites; the notes are in [`docs/reference.md`](docs/reference.md). None of their assets are used here.
 
@@ -26,7 +26,7 @@ Without WebGL, with reduced motion, or with `?static` in the URL, the same pages
 ## Editing
 
 - **Words and projects:** [`assets/js/content.js`](assets/js/content.js). Then run `node scripts/gen-pages.js` to rewrite the HTML pages (they are generated so every path stays relative).
-- **The mark:** [`assets/js/mark.js`](assets/js/mark.js), a 100×100 polygon plus the crossbar. The loader, the header, the footer and the 3D extrusion all read it.
+- **The mark:** [`assets/js/mark.js`](assets/js/mark.js): seven floors cut from the silhouette of an A in a 100×100 box, the sixth one amber. The loader, the header, the footer, the favicon (written by `gen-pages.js`) and the 3D glass slabs all read it.
 - **Project images:** `assets/img/work/<slug>-<n>.avif|jpg` (1600×900), plus a `-s.jpg` at 800×450 for the screen wall.
 - **Motion and staging:** [`assets/js/home.js`](assets/js/home.js) holds the keyframes for the mark and camera, the text-layer windows and the scroll stops.
 - **Rendering:** [`assets/js/gl.js`](assets/js/gl.js): scenes, glass material, generated environment, the post chain (flow field, curtain and dissolve, bloom, grid, grain).

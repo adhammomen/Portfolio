@@ -7,12 +7,12 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const load = (file, name) => new Function(fs.readFileSync(path.join(ROOT, file), 'utf8').replace(/export const (\w+)/g, 'const $1').replace(/export const|export /g, '') + `\nreturn ${name};`)();
 const C = load('assets/js/content.js', 'CONTENT');
-const MARK = load('assets/js/mark.js', 'MARK');
+const { MARK, slabRects } = load('assets/js/mark.js', '{ MARK, slabRects }');
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const bodyPath = 'M' + MARK.body.map((p) => p.join(' ')).join('L') + 'Z';
-const b = MARK.bar; const barPath = `M${b.x} ${b.y}h${b.w}v${b.h}h${-b.w}Z`;
-const mark = (cls = '') => `<svg class="mark ${cls}" viewBox="0 0 100 100" aria-hidden="true"><path class="mark-body" d="${bodyPath}"/><path class="mark-bar" d="${barPath}"/></svg>`;
+const mark = (cls = '') => `<svg class="mark ${cls}" viewBox="0 0 100 100" aria-hidden="true">${slabRects()}</svg>`;
+// the favicon is the same seven floors on a dark tile
+const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#07090b"/><g transform="translate(5 5) scale(.22)">${MARK.slabs.map((sl) => `<rect x="${sl.x}" y="${sl.y}" width="${sl.w}" height="${sl.h}" rx="${MARK.radius}" fill="${sl.amber ? '#ffb43a' : '#eef1f3'}"/>`).join('')}</g></svg>\n`;
 const arrow = '<span class="arr" aria-hidden="true">↗</span>';
 const pad = (n) => String(n).padStart(2, '0');
 const projectBySlug = Object.fromEntries(C.projects.map((p) => [p.slug, p]));
@@ -332,6 +332,7 @@ function contact() {
 }
 
 const pages = [home(), workIndex(), ...C.projects.map(workDetail), about(), contact()];
+fs.writeFileSync(path.join(ROOT, 'assets/favicon.svg'), favicon);
 for (const p of pages) {
   const out = path.join(ROOT, p.file);
   fs.mkdirSync(path.dirname(out), { recursive: true });

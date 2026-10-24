@@ -154,6 +154,7 @@ async function boot() {
     store.set('am-seen', '1');
     hideLoader(loader, parts);
     window.gsap.to(gl, { reveal: 1, duration: 1.8, ease: 'power2.out', delay: 0.35 });
+    window.gsap.fromTo(gl, { assemble: 0 }, { assemble: 1, duration: 2, ease: 'none', delay: 0.45 });   // the floors stack into place as the scene appears
     await wait(900);
     lenis?.start();
     if (page?.home) page.home.on = {};   // replay the hero's entrance now that it can be seen
