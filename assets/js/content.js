@@ -61,6 +61,19 @@ export const CONTENT = {
 
   flagship: 'ordium',
 
+  // the homepage is the A, floor by floor, top to bottom. Floor numbers match assets/js/mark.js.
+  floors: [
+    { key: 'hero', name: 'Hero' },
+    { key: 'statement', name: 'Statement' },
+    { key: 'capabilities', name: 'Capabilities' },
+    { key: 'progress', name: 'In progress', projects: ['ordium', 'kingsmaker'] },
+    { key: 'shipped', name: 'Shipped', projects: ['two-windows', 'proof'] },
+    { key: 'signal', name: 'Signal' },
+    { key: 'base', name: 'About · Contact' },
+  ],
+  available: 'Available for new work',
+  aboutShort: 'Independent developer. I build platforms end to end and keep the servers they run on alive.',
+
   lab: [
     { title: 'Two Windows', href: 'lab/two-windows/' },
     { title: 'Proof', href: 'lab/proof/' },

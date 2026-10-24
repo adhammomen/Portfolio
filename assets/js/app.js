@@ -45,8 +45,9 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(
 
 // ---------- pages ----------
 let page = null;
-// inner pages: gradient, grid, and the mark small and far off to one side
-const SUB = { sub: 1, wall: 0, word: 0, car: 0, cap: 0, curtain: 0, dissolve: 0, bar: 0, flat: 0, grid: 1, mx: 4.2, my: -1.9, mz: -4, ms: 0.62, frost: 0.4, spin: 0.6, mrx: 0, mry: 0, camX: 0, camY: 0, camZ: 7 };
+// inner pages: gradient, grid, and the A small and off to one side
+const SUB = { sub: 1, wall: 0, curtain: 0, dissolve: 0, signal: 0, flat: 0, grid: 1, spread: 1, gz: -2.5, frost: 0.4, spin: 0.6, mrx: 0, mry: 0, camZ: 7 };
+const subGroup = () => { const w = window.innerWidth, h = window.innerHeight; return isNarrow() ? { gx: w * 0.62, gy: h * 0.86, gu: h * 0.0032 } : { gx: w * 0.95, gy: h * 0.86, gu: h * 0.0058 }; };
 function mount() {
   const main = document.getElementById('main');
   const kind = main.dataset.page;
@@ -58,7 +59,7 @@ function mount() {
     page = { home, update: (y) => home.update(y), destroy: () => home.destroy() };
   } else {
     const un = mountPage(main, { sound, lenis });
-    if (gl) gl.set(isNarrow() ? { ...SUB, mx: 1.5, my: -3.2, ms: 0.5 } : SUB);
+    if (gl) { gl.resetSlabs(); gl.set({ ...SUB, ...subGroup() }); }
     page = { update: () => {}, destroy: un };
   }
 }
@@ -106,14 +107,14 @@ window.addEventListener('resize', () => {
   clearTimeout(resizeT);
   resizeT = setTimeout(() => {
     gl?.resize();
-    if (page?.home) { page.home.narrow = isNarrow(); page.home.layout(); }
+    if (page?.home) { page.home.narrow = isNarrow(); page.home.layout(); } else if (gl) gl.set(subGroup());
     lenis?.resize();
   }, 120);
 });
 document.addEventListener('visibilitychange', () => sound.visibility(document.hidden));
 
 // snap to the nearest resting frame once the wheel stops (mouse and trackpad only)
-if (lenis && gl && fine) {
+if (lenis && gl && fine && !new URLSearchParams(location.search).has('nosnap')) {
   let snapT;
   lenis.on('scroll', () => { clearTimeout(snapT); snapT = setTimeout(() => { if (!lenis.isSmooth) page?.home?.maybeSnap(lenis.scroll); }, 170); });
 }
@@ -183,3 +184,5 @@ function offerSound() {
 }
 
 boot();
+// ?debug exposes the internals and lets tweens run in real time even when frames are slow (software rendering)
+if (new URLSearchParams(location.search).has('debug')) { window.__am = { gl, lenis, get page() { return page; } }; window.addEventListener('load', () => window.gsap?.ticker.lagSmoothing(0)); }

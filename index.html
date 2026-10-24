@@ -52,15 +52,9 @@
   <p class="menu-lab mono">Lab: <a href="lab/two-windows/">Two Windows</a> · <a href="lab/proof/">Proof</a></p>
 </div>
 
-<nav class="ruler mono" aria-label="Sections">
-  <ol>
-    <li data-to="hero"><button type="button">Top</button></li>
-    <li data-to="work"><button type="button">Work</button></li>
-    <li data-to="statement"><button type="button">Statement</button></li>
-    <li data-to="signal"><button type="button">Signal</button></li>
-    <li data-to="capabilities"><button type="button">Capabilities</button></li>
-    <li data-to="flagship"><button type="button">Ordium</button></li>
-  </ol>
+<nav class="dock mono" aria-label="Floors">
+  <svg class="dock-a" viewBox="0 0 100 100" aria-hidden="true"><rect class="dk" data-slab="0" x="41.1" y="0" width="17.8" height="11" rx="1.6"/><rect class="dk" data-slab="1" x="35.9" y="14.8" width="28.2" height="11" rx="1.6"/><rect class="dk" data-slab="2" x="30.7" y="29.7" width="38.6" height="11" rx="1.6"/><rect class="dk" data-slab="3" x="25.5" y="44.5" width="18.9" height="11" rx="1.6"/><rect class="dk" data-slab="4" x="55.6" y="44.5" width="18.9" height="11" rx="1.6"/><rect class="dk" data-slab="5" x="20.3" y="59.3" width="18.9" height="11" rx="1.6"/><rect class="dk" data-slab="6" x="60.7" y="59.3" width="18.9" height="11" rx="1.6"/><rect class="dk is-amber" data-slab="7" x="15.1" y="74.2" width="69.8" height="11" rx="1.6"/><rect class="dk" data-slab="8" x="9.9" y="89" width="19" height="11" rx="1.6"/><rect class="dk" data-slab="9" x="71.1" y="89" width="19" height="11" rx="1.6"/></svg>
+  <ol class="dock-list"><li style="top:0%"><button type="button" data-to="0"><span class="code">F0</span><span class="dock-name">Hero</span></button></li><li style="top:14.8%"><button type="button" data-to="1"><span class="code">F1</span><span class="dock-name">Statement</span></button></li><li style="top:29.7%"><button type="button" data-to="2"><span class="code">F2</span><span class="dock-name">Capabilities</span></button></li><li style="top:44.5%"><button type="button" data-to="3"><span class="code">F3</span><span class="dock-name">In progress</span></button></li><li style="top:59.3%"><button type="button" data-to="4"><span class="code">F4</span><span class="dock-name">Shipped</span></button></li><li style="top:74.2%"><button type="button" data-to="5"><span class="code">F5</span><span class="dock-name">Signal</span></button></li><li style="top:89%"><button type="button" data-to="6"><span class="code">F6</span><span class="dock-name">About · Contact</span></button></li></ol>
 </nav>
 
 <aside class="dev mono" aria-label="Developer panel">
@@ -76,132 +70,85 @@
 
 <main id="main" data-page="home" data-title="Adham Momen: Developer &amp; Builder">
 
-  <section class="sec sec-hero" data-sec="hero" data-len="1.5">
+  <section class="sec sec-hero" data-sec="hero" data-floor="0">
     <div class="pin">
+      <div class="hero-a" aria-hidden="true"><svg class="mark hero-mark" viewBox="0 0 100 100" aria-hidden="true"><rect class="mark-body" x="41.1" y="0" width="17.8" height="11" rx="1.6"/><rect class="mark-body" x="35.9" y="14.8" width="28.2" height="11" rx="1.6"/><rect class="mark-body" x="30.7" y="29.7" width="38.6" height="11" rx="1.6"/><rect class="mark-body" x="25.5" y="44.5" width="18.9" height="11" rx="1.6"/><rect class="mark-body" x="55.6" y="44.5" width="18.9" height="11" rx="1.6"/><rect class="mark-body" x="20.3" y="59.3" width="18.9" height="11" rx="1.6"/><rect class="mark-body" x="60.7" y="59.3" width="18.9" height="11" rx="1.6"/><rect class="mark-bar" x="15.1" y="74.2" width="69.8" height="11" rx="1.6"/><rect class="mark-body" x="9.9" y="89" width="19" height="11" rx="1.6"/><rect class="mark-body" x="71.1" y="89" width="19" height="11" rx="1.6"/></svg></div>
       <div class="hero-copy">
         <p class="eyebrow mono">Developer &amp; Builder · Independent</p>
         <h1 class="hero-title" data-split><span class="ln">Systems,</span> <span class="ln">made tangible.</span></h1>
         <p class="hero-intro">I build the systems underneath and the surfaces people touch: platforms, servers, products and interfaces, from the first line to the box they run on.</p>
       </div>
-      <p class="hero-cue mono"><span>Scroll to explore</span><i aria-hidden="true"></i></p>
+      <p class="hero-cue mono"><span>Scroll to take it apart</span><i aria-hidden="true"></i></p>
     </div>
   </section>
 
-  <section class="sec sec-workintro" data-sec="workintro" data-len="1.2">
-    <div class="pin"><p class="wi-label mono"><span>Selected work</span><span>04 projects · 2026</span></p></div>
-  </section>
-
-  <section class="sec sec-work" data-sec="work" data-len="4.6" aria-label="Work">
+  <section class="sec sec-toc" data-sec="toc" aria-label="Contents">
     <div class="pin">
-      <h2 class="vh">Work</h2>
-      <div class="wk-list">
-      <article class="wk-item" data-index="0">
-        <p class="wk-meta"><span class="code">2026</span><span class="status is-progress"><i></i>In progress</span><span class="code wk-count">01 / 04</span></p>
-        <h3 class="wk-title" data-split><a href="work/ordium/" data-link>Ordium</a></h3>
-        <p class="wk-line">The big one, built end to end.</p>
-        <p class="wk-kind code">Platform · Server</p>
-        <picture class="wk-pic"><source srcset="assets/img/work/ordium-1.avif" type="image/avif"><img src="assets/img/work/ordium-1.jpg" alt="Ordium, Platform · Server" width="1600" height="900" loading="lazy" decoding="async"></picture>
-      </article>
-      <article class="wk-item" data-index="1">
-        <p class="wk-meta"><span class="code">2026</span><span class="status is-progress"><i></i>In progress</span><span class="code wk-count">02 / 04</span></p>
-        <h3 class="wk-title" data-split><a href="work/kingsmaker/" data-link>Kingsmaker</a></h3>
-        <p class="wk-line">A side idea that refused to leave.</p>
-        <p class="wk-kind code">Product</p>
-        <picture class="wk-pic"><source srcset="assets/img/work/kingsmaker-1.avif" type="image/avif"><img src="assets/img/work/kingsmaker-1.jpg" alt="Kingsmaker, Product" width="1600" height="900" loading="lazy" decoding="async"></picture>
-      </article>
-      <article class="wk-item" data-index="2">
-        <p class="wk-meta"><span class="code">2026</span><span class="status is-shipped"><i></i>Shipped</span><span class="code wk-count">03 / 04</span></p>
-        <h3 class="wk-title" data-split><a href="work/two-windows/" data-link>Two Windows</a></h3>
-        <p class="wk-line">A portfolio bigger than a browser window.</p>
-        <p class="wk-kind code">Experiment · Browser APIs</p>
-        <picture class="wk-pic"><source srcset="assets/img/work/two-windows-1.avif" type="image/avif"><img src="assets/img/work/two-windows-1.jpg" alt="Two Windows, Experiment · Browser APIs" width="1600" height="900" loading="lazy" decoding="async"></picture>
-      </article>
-      <article class="wk-item" data-index="3">
-        <p class="wk-meta"><span class="code">2026</span><span class="status is-shipped"><i></i>Shipped</span><span class="code wk-count">04 / 04</span></p>
-        <h3 class="wk-title" data-split><a href="work/proof/" data-link>Proof</a></h3>
-        <p class="wk-line">Every claim is a test that runs in your browser.</p>
-        <p class="wk-kind code">Experiment · Testing</p>
-        <picture class="wk-pic"><source srcset="assets/img/work/proof-1.avif" type="image/avif"><img src="assets/img/work/proof-1.jpg" alt="Proof, Experiment · Testing" width="1600" height="900" loading="lazy" decoding="async"></picture>
-      </article>
-      </div>
-      <a class="wk-all mono" href="work/" data-link>All work <span class="arr" aria-hidden="true">↗</span></a>
-    </div>
-  </section>
-
-  <section class="sec sec-workout" data-sec="workout" data-len="1.3"><div class="pin"></div></section>
-
-  <section class="sec sec-statement" data-sec="statement" data-len="2.2">
-    <div class="pin">
-      <div class="st-copy">
-        <p class="eyebrow mono">Statement</p>
-        <h2 class="hl"><span class="hl-line"><span>I build the systems</span></span><span class="hl-line"><span>underneath and the</span></span><span class="hl-line"><span>surfaces people touch.</span></span></h2>
-        <p class="st-sub">Platforms, servers, products and interfaces, from the first line to the box they run on.</p>
+      <div class="toc">
+        <div class="toc-copy">
+          <p class="eyebrow mono">Seven floors</p>
+          <h2 class="toc-title" data-split>The site, floor by floor.</h2>
+          <p class="toc-text">Every floor of the A is one part of this page. Read a floor and it goes back into the A. Finish the page and the A is whole again.</p>
+        </div>
+        <div class="toc-a" style="aspect-ratio:100 / 180.1" data-spread="1.9"><span class="toc-slab" data-slab="0" style="left:41.1%;width:17.8%;top:0%;height:6.108%"></span><span class="toc-slab" data-slab="1" style="left:35.9%;width:28.2%;top:15.614%;height:6.108%"></span><span class="toc-slab" data-slab="2" style="left:30.7%;width:38.6%;top:31.333%;height:6.108%"></span><span class="toc-slab" data-slab="3" style="left:25.5%;width:18.9%;top:46.946%;height:6.108%"></span><span class="toc-slab" data-slab="4" style="left:55.6%;width:18.9%;top:46.946%;height:6.108%"></span><span class="toc-slab" data-slab="5" style="left:20.3%;width:18.9%;top:62.56%;height:6.108%"></span><span class="toc-slab" data-slab="6" style="left:60.7%;width:18.9%;top:62.56%;height:6.108%"></span><span class="toc-slab is-amber" data-slab="7" style="left:15.1%;width:69.8%;top:78.279%;height:6.108%"></span><span class="toc-slab" data-slab="8" style="left:9.9%;width:19%;top:93.892%;height:6.108%"></span><span class="toc-slab" data-slab="9" style="left:71.1%;width:19%;top:93.892%;height:6.108%"></span><ol class="toc-labels mono"><li style="top:3.054%"><button type="button" data-to="0"><span class="code">F0</span>Hero</button></li><li style="top:18.667%"><button type="button" data-to="1"><span class="code">F1</span>Statement</button></li><li style="top:34.386%"><button type="button" data-to="2"><span class="code">F2</span>Capabilities</button></li><li style="top:50%"><button type="button" data-to="3"><span class="code">F3</span>In progress</button></li><li style="top:65.614%"><button type="button" data-to="4"><span class="code">F4</span>Shipped</button></li><li style="top:81.333%"><button type="button" data-to="5"><span class="code">F5</span>Signal</button></li><li style="top:96.946%"><button type="button" data-to="6"><span class="code">F6</span>About · Contact</button></li></ol></div>
       </div>
     </div>
   </section>
 
-  <section class="sec sec-signal" data-sec="signal" data-len="2.2">
-    <div class="pin">
-      <p class="sg-word" aria-hidden="true">SIGNAL</p>
-      <div class="sg-copy">
-        <h2 class="hl hl-right"><span class="hl-line"><span>Quiet where it should be,</span></span><span class="hl-line"><span>loud where it matters.</span></span></h2>
-        <p class="st-sub">Most of a system should disappear. The few parts people feel should be impossible to miss.</p>
-      </div>
-    </div>
+  <section class="sec fl fl-statement" data-sec="f1" data-floor="1" aria-label="Statement">
+    <div class="pin"><div class="fl-in" style="--ext:28.2">
+      <p class="fl-head mono"><span class="fl-no">F1</span><span class="fl-name">Statement</span><span class="fl-dim">28.2 × 11</span></p>
+      <div class="plan"><div class="slot is-ink" data-slab="1" style="left:0%;width:100%"><i class="slot-g" aria-hidden="true"><b></b><b></b><b></b><b></b></i><div class="slot-in st-in"><h2 class="hl"><span class="hl-line"><span>I build the systems</span></span><span class="hl-line"><span>underneath and the</span></span><span class="hl-line"><span>surfaces people touch.</span></span></h2></div></div></div>
+      <p class="st-sub">Platforms, servers, products and interfaces, from the first line to the box they run on.</p>
+    </div></div>
   </section>
 
-  <section class="sec sec-signalout" data-sec="signalout" data-len="1.2"><div class="pin"></div></section>
-
-  <section class="sec sec-caps" data-sec="capabilities" data-len="3.8" aria-label="Capabilities">
-    <div class="pin">
-      <h2 class="eyebrow mono cap-head">Capabilities</h2>
-      <div class="cap-list-wrap">
-      <article class="cap-item" data-index="0">
-        <p class="cap-count code">01 / 03</p>
-        <h3 class="cap-title" data-split>Platforms</h3>
-        <p class="cap-text">Products from the database to the button: the API, the data model, sign-in, billing and the realtime parts in between.</p>
-        <ul class="cap-list mono"><li>Full-stack products</li><li>APIs &amp; data</li><li>Auth, billing, realtime</li></ul>
-        <video class="cap-video" data-cap="platforms" muted loop playsinline preload="metadata" poster="assets/video/platforms.jpg" aria-label="Platforms, an abstract loop">
-          <source src="assets/video/platforms.webm" type="video/webm"><source src="assets/video/platforms.mp4" type="video/mp4">
-        </video>
-      </article>
-      <article class="cap-item" data-index="1">
-        <p class="cap-count code">02 / 03</p>
-        <h3 class="cap-title" data-split>Infrastructure</h3>
-        <p class="cap-text">The box it all runs on. I keep my own servers alive, deploy them, automate them and watch them.</p>
-        <ul class="cap-list mono"><li>Self-hosted servers</li><li>Deploys &amp; automation</li><li>Monitoring</li></ul>
-        <video class="cap-video" data-cap="infrastructure" muted loop playsinline preload="metadata" poster="assets/video/infrastructure.jpg" aria-label="Infrastructure, an abstract loop">
-          <source src="assets/video/infrastructure.webm" type="video/webm"><source src="assets/video/infrastructure.mp4" type="video/mp4">
-        </video>
-      </article>
-      <article class="cap-item" data-index="2">
-        <p class="cap-count code">03 / 03</p>
-        <h3 class="cap-title" data-split>Interfaces</h3>
-        <p class="cap-text">The surface people touch: product design, creative development, WebGL and motion, like the page you are scrolling.</p>
-        <ul class="cap-list mono"><li>Product design</li><li>Creative development</li><li>WebGL &amp; motion</li></ul>
-        <video class="cap-video" data-cap="interfaces" muted loop playsinline preload="metadata" poster="assets/video/interfaces.jpg" aria-label="Interfaces, an abstract loop">
-          <source src="assets/video/interfaces.webm" type="video/webm"><source src="assets/video/interfaces.mp4" type="video/mp4">
-        </video>
-      </article>
+  <section class="sec fl fl-caps" data-sec="f2" data-floor="2" aria-label="Capabilities">
+    <div class="pin"><div class="fl-in" style="--ext:38.6">
+      <p class="fl-head mono"><span class="fl-no">F2</span><span class="fl-name">Capabilities</span><span class="fl-dim">38.6 × 11</span></p>
+      <div class="plan"><div class="slot " data-slab="2" style="left:0%;width:100%"><i class="slot-g" aria-hidden="true"><b></b><b></b><b></b><b></b></i><div class="slot-vids"><video class="cap-video" data-cap="platforms" muted loop playsinline preload="metadata" poster="assets/video/platforms.jpg" aria-label="Platforms, an abstract loop"><source src="assets/video/platforms.webm" type="video/webm"><source src="assets/video/platforms.mp4" type="video/mp4"></video><video class="cap-video" data-cap="infrastructure" muted loop playsinline preload="metadata" poster="assets/video/infrastructure.jpg" aria-label="Infrastructure, an abstract loop"><source src="assets/video/infrastructure.webm" type="video/webm"><source src="assets/video/infrastructure.mp4" type="video/mp4"></video><video class="cap-video" data-cap="interfaces" muted loop playsinline preload="metadata" poster="assets/video/interfaces.jpg" aria-label="Interfaces, an abstract loop"><source src="assets/video/interfaces.webm" type="video/webm"><source src="assets/video/interfaces.mp4" type="video/mp4"></video></div></div></div>
+      <div class="plan-under caps-under">
+        <article class="cap-item"><p class="cap-count code">01 / 03</p><h3 class="cap-title" data-split>Platforms</h3><p class="cap-text">Products from the database to the button: the API, the data model, sign-in, billing and the realtime parts in between.</p><ul class="cap-list mono"><li>Full-stack products</li><li>APIs &amp; data</li><li>Auth, billing, realtime</li></ul></article>
+        <article class="cap-item"><p class="cap-count code">02 / 03</p><h3 class="cap-title" data-split>Infrastructure</h3><p class="cap-text">The box it all runs on. I keep my own servers alive, deploy them, automate them and watch them.</p><ul class="cap-list mono"><li>Self-hosted servers</li><li>Deploys &amp; automation</li><li>Monitoring</li></ul></article>
+        <article class="cap-item"><p class="cap-count code">03 / 03</p><h3 class="cap-title" data-split>Interfaces</h3><p class="cap-text">The surface people touch: product design, creative development, WebGL and motion, like the page you are scrolling.</p><ul class="cap-list mono"><li>Product design</li><li>Creative development</li><li>WebGL &amp; motion</li></ul></article>
       </div>
-    </div>
+    </div></div>
   </section>
 
-  <section class="sec sec-flag" data-sec="flagship" data-len="1.6">
-    <div class="pin">
-      <div class="fl-frame">
-        <span class="fl-x tl"></span><span class="fl-x tr"></span><span class="fl-x bl"></span><span class="fl-x br"></span>
-        <p class="eyebrow mono">Flagship · <span class="status is-progress"><i></i>In progress</span></p>
-        <h2 class="fl-title" data-split>Ordium</h2>
-        <p class="fl-text">The big one. A platform I am building end to end, running on a server I keep alive myself.</p>
-        <dl class="fl-spec mono"><div><dt>Kind</dt><dd>Platform · Server</dd></div><div><dt>Year</dt><dd>2026</dd></div><div><dt>Runs on</dt><dd>A server I keep alive myself</dd></div></dl>
-        <a class="fl-link mono" href="work/ordium/" data-link><span class="ring" aria-hidden="true">↗</span>About Ordium</a>
-      </div>
-    </div>
+  <section class="sec fl fl-projects" data-sec="f3" data-floor="3" aria-label="In progress">
+    <div class="pin"><div class="fl-in" style="--ext:49">
+      <p class="fl-head mono"><span class="fl-no">F3</span><span class="fl-name">In progress</span><span class="fl-dim">49 × 11</span></p>
+      <div class="plan"><div class="slot is-project" data-slab="3" style="left:0%;width:38.571%"><i class="slot-g" aria-hidden="true"><b></b><b></b><b></b><b></b></i><a class="slot-link" href="work/ordium/" data-link data-shatter="3" aria-label="Ordium"><picture class="slot-pic"><source srcset="assets/img/work/ordium-1.avif" type="image/avif"><img src="assets/img/work/ordium-1.jpg" alt="Ordium, Platform · Server" width="1600" height="900" decoding="async"></picture></a></div><div class="slot is-project" data-slab="4" style="left:61.429%;width:38.571%"><i class="slot-g" aria-hidden="true"><b></b><b></b><b></b><b></b></i><a class="slot-link" href="work/kingsmaker/" data-link data-shatter="4" aria-label="Kingsmaker"><picture class="slot-pic"><source srcset="assets/img/work/kingsmaker-1.avif" type="image/avif"><img src="assets/img/work/kingsmaker-1.jpg" alt="Kingsmaker, Product" width="1600" height="900" decoding="async"></picture></a></div></div>
+      <div class="plan-under"><div class="under" style="margin-left:0%;width:38.571%"><p class="pr-meta"><span class="code">2026</span><span class="status is-progress"><i></i>In progress</span></p><h3 class="pr-title" data-split><a href="work/ordium/" data-link data-shatter="3">Ordium</a></h3><p class="pr-line">The big one, built end to end.</p><p class="pr-kind code">Platform · Server</p></div><div class="under" style="margin-left:61.429%;width:38.571%"><p class="pr-meta"><span class="code">2026</span><span class="status is-progress"><i></i>In progress</span></p><h3 class="pr-title" data-split><a href="work/kingsmaker/" data-link data-shatter="4">Kingsmaker</a></h3><p class="pr-line">A side idea that refused to leave.</p><p class="pr-kind code">Product</p></div></div>
+    </div></div>
   </section>
 
-  <section class="sec sec-outro" data-sec="outro" data-len="1.7">
+  <section class="sec fl fl-projects" data-sec="f4" data-floor="4" aria-label="Shipped">
+    <div class="pin"><div class="fl-in" style="--ext:59.3">
+      <p class="fl-head mono"><span class="fl-no">F4</span><span class="fl-name">Shipped</span><span class="fl-dim">59.3 × 11</span></p>
+      <div class="plan"><div class="slot is-project" data-slab="5" style="left:0%;width:31.872%"><i class="slot-g" aria-hidden="true"><b></b><b></b><b></b><b></b></i><a class="slot-link" href="work/two-windows/" data-link data-shatter="5" aria-label="Two Windows"><picture class="slot-pic"><source srcset="assets/img/work/two-windows-1.avif" type="image/avif"><img src="assets/img/work/two-windows-1.jpg" alt="Two Windows, Experiment · Browser APIs" width="1600" height="900" decoding="async"></picture></a></div><div class="slot is-project" data-slab="6" style="left:68.128%;width:31.872%"><i class="slot-g" aria-hidden="true"><b></b><b></b><b></b><b></b></i><a class="slot-link" href="work/proof/" data-link data-shatter="6" aria-label="Proof"><picture class="slot-pic"><source srcset="assets/img/work/proof-1.avif" type="image/avif"><img src="assets/img/work/proof-1.jpg" alt="Proof, Experiment · Testing" width="1600" height="900" decoding="async"></picture></a></div></div>
+      <div class="plan-under"><div class="under" style="margin-left:0%;width:31.872%"><p class="pr-meta"><span class="code">2026</span><span class="status is-shipped"><i></i>Shipped</span></p><h3 class="pr-title" data-split><a href="work/two-windows/" data-link data-shatter="5">Two Windows</a></h3><p class="pr-line">A portfolio bigger than a browser window.</p><p class="pr-kind code">Experiment · Browser APIs</p></div><div class="under" style="margin-left:68.128%;width:31.872%"><p class="pr-meta"><span class="code">2026</span><span class="status is-shipped"><i></i>Shipped</span></p><h3 class="pr-title" data-split><a href="work/proof/" data-link data-shatter="6">Proof</a></h3><p class="pr-line">Every claim is a test that runs in your browser.</p><p class="pr-kind code">Experiment · Testing</p></div></div>
+    </div></div>
+  </section>
+  <section class="sec fl fl-signal" data-sec="f5" data-floor="5" aria-label="Signal">
+    <div class="pin"><div class="fl-in" style="--ext:69.8">
+      <p class="fl-head mono"><span class="fl-no">F5</span><span class="fl-name">Signal</span><span class="fl-dim">69.8 × 11</span></p>
+      <h2 class="hl sg-hl"><span class="hl-line"><span>Quiet where it should be,</span></span><span class="hl-line"><span>loud where it matters.</span></span></h2>
+      <div class="plan"><div class="slot is-amber" data-slab="7" style="left:0%;width:100%"><i class="slot-g" aria-hidden="true"><b></b><b></b><b></b><b></b></i><div class="slot-in sg-in"><p class="sg-avail mono"><i></i>Available for new work</p><a class="sg-mail" href="mailto:adhammomen64@gmail.com">adhammomen64@gmail.com</a><button type="button" class="sg-copy mono" data-copy="adhammomen64@gmail.com">Copy</button></div></div></div>
+      <p class="st-sub sg-sub">Most of a system should disappear. The few parts people feel should be impossible to miss.</p>
+    </div></div>
+  </section>
+
+  <section class="sec fl fl-base" data-sec="f6" data-floor="6" aria-label="About and contact">
+    <div class="pin"><div class="fl-in" style="--ext:80.2">
+      <p class="fl-head mono"><span class="fl-no">F6</span><span class="fl-name">About · Contact</span><span class="fl-dim">80.2 × 11</span></p>
+      <div class="plan"><div class="slot is-leg" data-slab="8" style="left:0%;width:23.691%"><i class="slot-g" aria-hidden="true"><b></b><b></b><b></b><b></b></i><div class="slot-in leg-in"><p class="leg-k mono">About</p><p class="leg-text">Independent developer. I build platforms end to end and keep the servers they run on alive.</p><a class="leg-link mono" href="about/" data-link>More about me <span class="arr" aria-hidden="true">↗</span></a></div></div><p class="base-mid mono" style="left:23.691%;right:23.691%">The A stands on these two.<br>Keep going and it rebuilds itself.</p><div class="slot is-leg" data-slab="9" style="left:76.309%;width:23.691%"><i class="slot-g" aria-hidden="true"><b></b><b></b><b></b><b></b></i><div class="slot-in leg-in"><p class="leg-k mono">Contact</p><a class="leg-mail" href="mailto:adhammomen64@gmail.com">adhammomen64@gmail.com</a><a class="leg-link mono" href="https://github.com/adhammomen" rel="noopener">GitHub <span class="arr" aria-hidden="true">↗</span></a></div></div></div>
+    </div></div>
+  </section>
+
+  <section class="sec sec-outro" data-sec="outro">
     <div class="pin">
+      <div class="ot-ground" aria-hidden="true"><i></i><p class="mono"><span>F0 – F6</span><span>7 floors · 10 slabs · rebuilt</span></p></div>
       <p class="ot-word" aria-label="Adham Momen"><svg class="mark ot-mark" viewBox="0 0 100 100" aria-hidden="true"><rect class="mark-body" x="41.1" y="0" width="17.8" height="11" rx="1.6"/><rect class="mark-body" x="35.9" y="14.8" width="28.2" height="11" rx="1.6"/><rect class="mark-body" x="30.7" y="29.7" width="38.6" height="11" rx="1.6"/><rect class="mark-body" x="25.5" y="44.5" width="18.9" height="11" rx="1.6"/><rect class="mark-body" x="55.6" y="44.5" width="18.9" height="11" rx="1.6"/><rect class="mark-body" x="20.3" y="59.3" width="18.9" height="11" rx="1.6"/><rect class="mark-body" x="60.7" y="59.3" width="18.9" height="11" rx="1.6"/><rect class="mark-bar" x="15.1" y="74.2" width="69.8" height="11" rx="1.6"/><rect class="mark-body" x="9.9" y="89" width="19" height="11" rx="1.6"/><rect class="mark-body" x="71.1" y="89" width="19" height="11" rx="1.6"/></svg><span class="ot-rest" data-split>DHAM MOMEN</span></p>
       <p class="ot-line">Systems, made tangible. <a href="contact/" data-link class="ot-cta">Write to me <span class="arr" aria-hidden="true">↗</span></a></p>
     </div>

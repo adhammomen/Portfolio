@@ -77,15 +77,9 @@ function shell({ r, page, title, desc, main }) {
   <p class="menu-lab mono">Lab: ${C.lab.map((l) => `<a href="${r}${l.href}">${esc(l.title)}</a>`).join(' · ')}</p>
 </div>
 
-<nav class="ruler mono" aria-label="Sections">
-  <ol>
-    <li data-to="hero"><button type="button">Top</button></li>
-    <li data-to="work"><button type="button">Work</button></li>
-    <li data-to="statement"><button type="button">Statement</button></li>
-    <li data-to="signal"><button type="button">Signal</button></li>
-    <li data-to="capabilities"><button type="button">Capabilities</button></li>
-    <li data-to="flagship"><button type="button">Ordium</button></li>
-  </ol>
+<nav class="dock mono" aria-label="Floors">
+  <svg class="dock-a" viewBox="0 0 100 100" aria-hidden="true">${MARK.slabs.map((sl) => `<rect class="dk${sl.amber ? ' is-amber' : ''}" data-slab="${sl.i}" x="${sl.x}" y="${sl.y}" width="${sl.w}" height="${sl.h}" rx="${MARK.radius}"/>`).join('')}</svg>
+  <ol class="dock-list">${C.floors.map((f, i) => `<li style="top:${(MARK.slabs.find((s) => s.floor === i).y)}%"><button type="button" data-to="${i}"><span class="code">F${i}</span><span class="dock-name">${esc(f.name)}</span></button></li>`).join('')}</ol>
 </nav>
 
 <aside class="dev mono" aria-label="Developer panel">
@@ -126,99 +120,128 @@ ${main}
 }
 
 // ---------- home ----------
+// The homepage is the A, read floor by floor. Every floor section lays its slabs out on that floor's real footprint
+// (positions in % of the floor's extent), so the 3D glass can fly from the A into the page and back.
+const num = (v) => +v.toFixed(3);
+const TOC_SPREAD = 1.9;
+function tocBox() {
+  // the exploded A: floors pushed apart vertically around the centre, the box grows to fit
+  const top = (MARK.slabs[0].y + MARK.h / 2 - 50) * TOC_SPREAD + 50 - MARK.h / 2;
+  const bottom = 100 - top;
+  return { top, height: bottom - top };
+}
 function home() {
   const r = '';
-  const flag = projectBySlug[C.flagship];
-  const work = C.projects.map((p, i) => `
-      <article class="wk-item" data-index="${i}">
-        <p class="wk-meta"><span class="code">${p.year}</span>${statusChip(p)}<span class="code wk-count">${pad(i + 1)} / ${pad(C.projects.length)}</span></p>
-        <h3 class="wk-title" data-split><a href="${r}work/${p.slug}/" data-link>${esc(p.title)}</a></h3>
-        <p class="wk-line">${esc(p.line)}</p>
-        <p class="wk-kind code">${esc(p.kind)}</p>
-        ${picture(r, p.slug, 1, `${p.title}, ${p.kind}`, 'wk-pic')}
-      </article>`).join('');
-  const caps = C.capabilities.map((c, i) => `
-      <article class="cap-item" data-index="${i}">
-        <p class="cap-count code">${pad(i + 1)} / ${pad(C.capabilities.length)}</p>
-        <h3 class="cap-title" data-split>${esc(c.title)}</h3>
-        <p class="cap-text">${esc(c.text)}</p>
-        <ul class="cap-list mono">${c.items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
-        <video class="cap-video" data-cap="${c.key}" muted loop playsinline preload="metadata" poster="${r}assets/video/${c.video}.jpg" aria-label="${esc(c.title)}, an abstract loop">
-          <source src="${r}assets/video/${c.video}.webm" type="video/webm"><source src="${r}assets/video/${c.video}.mp4" type="video/mp4">
-        </video>
-      </article>`).join('');
+  const F = C.floors;
+  const fl = (f) => MARK.extent(f);
+  const pos = (s, e) => `left:${num((s.x - e.x0) / e.w * 100)}%;width:${num(s.w / e.w * 100)}%`;
+  const upos = (s, e) => `margin-left:${num((s.x - e.x0) / e.w * 100)}%;width:${num(s.w / e.w * 100)}%`;
+  const head = (f, extra = '') => `<p class="fl-head mono"><span class="fl-no">F${f}</span><span class="fl-name">${esc(F[f].name)}</span>${extra}<span class="fl-dim">${fl(f).w} × ${MARK.h}</span></p>`;
+  const plan = (f, inner) => `<div class="plan">${inner}</div>`;
+  const flIn = (f) => `<div class="fl-in" style="--ext:${fl(f).w}">`;
+  const slot = (s, e, inner = '', cls = '') => `<div class="slot ${cls}" data-slab="${s.i}" style="${pos(s, e)}"><i class="slot-g" aria-hidden="true"><b></b><b></b><b></b><b></b></i>${inner}</div>`;
+  const under = (s, e, inner) => `<div class="under" style="${upos(s, e)}">${inner}</div>`;
+
+  // TOC: the exploded A
+  const tb = tocBox();
+  const tocSlabs = MARK.slabs.map((s) => {
+    const cy = (s.y + s.h / 2 - 50) * TOC_SPREAD + 50;
+    return `<span class="toc-slab${s.amber ? ' is-amber' : ''}" data-slab="${s.i}" style="left:${num(s.x)}%;width:${num(s.w)}%;top:${num((cy - s.h / 2 - tb.top) / tb.height * 100)}%;height:${num(s.h / tb.height * 100)}%"></span>`;
+  }).join('');
+  const tocLabels = F.map((f, i) => {
+    const s = MARK.slabs.find((x) => x.floor === i);
+    const cy = (s.y + s.h / 2 - 50) * TOC_SPREAD + 50;
+    return `<li style="top:${num((cy - tb.top) / tb.height * 100)}%"><button type="button" data-to="${i}"><span class="code">F${i}</span>${esc(f.name)}</button></li>`;
+  }).join('');
+
+  const proj = (slug) => projectBySlug[slug];
+  const projectFloor = (f) => {
+    const e = fl(f);
+    const slots = e.slabs.map((s, k) => {
+      const p = proj(F[f].projects[k]);
+      return slot(s, e, `<a class="slot-link" href="${r}work/${p.slug}/" data-link data-shatter="${s.i}" aria-label="${esc(p.title)}">${picture(r, p.slug, 1, `${p.title}, ${p.kind}`, 'slot-pic', true)}</a>`, 'is-project');
+    }).join('');
+    const unders = e.slabs.map((s, k) => {
+      const p = proj(F[f].projects[k]);
+      return under(s, e, `<p class="pr-meta"><span class="code">${p.year}</span>${statusChip(p)}</p><h3 class="pr-title" data-split><a href="${r}work/${p.slug}/" data-link data-shatter="${s.i}">${esc(p.title)}</a></h3><p class="pr-line">${esc(p.line)}</p><p class="pr-kind code">${esc(p.kind)}</p>`);
+    }).join('');
+    return `
+  <section class="sec fl fl-projects" data-sec="f${f}" data-floor="${f}" aria-label="${esc(F[f].name)}">
+    <div class="pin">${flIn(f)}
+      ${head(f)}
+      ${plan(f, slots)}
+      <div class="plan-under">${unders}</div>
+    </div></div>
+  </section>`;
+  };
+
+  const e1 = fl(1), e2 = fl(2), e5 = fl(5), e6 = fl(6);
   const main = `
-  <section class="sec sec-hero" data-sec="hero" data-len="1.5">
+  <section class="sec sec-hero" data-sec="hero" data-floor="0">
     <div class="pin">
+      <div class="hero-a" aria-hidden="true">${mark('hero-mark')}</div>
       <div class="hero-copy">
         <p class="eyebrow mono">${esc(C.role)} · ${esc(C.location)}</p>
         <h1 class="hero-title" data-split><span class="ln">Systems,</span> <span class="ln">made tangible.</span></h1>
         <p class="hero-intro">${esc(C.intro)}</p>
       </div>
-      <p class="hero-cue mono"><span>Scroll to explore</span><i aria-hidden="true"></i></p>
+      <p class="hero-cue mono"><span>Scroll to take it apart</span><i aria-hidden="true"></i></p>
     </div>
   </section>
 
-  <section class="sec sec-workintro" data-sec="workintro" data-len="1.2">
-    <div class="pin"><p class="wi-label mono"><span>Selected work</span><span>${pad(C.projects.length)} projects · ${C.year}</span></p></div>
-  </section>
-
-  <section class="sec sec-work" data-sec="work" data-len="${C.projects.length + 0.6}" aria-label="Work">
+  <section class="sec sec-toc" data-sec="toc" aria-label="Contents">
     <div class="pin">
-      <h2 class="vh">Work</h2>
-      <div class="wk-list">${work}
-      </div>
-      <a class="wk-all mono" href="${r}work/" data-link>All work ${arrow}</a>
-    </div>
-  </section>
-
-  <section class="sec sec-workout" data-sec="workout" data-len="1.3"><div class="pin"></div></section>
-
-  <section class="sec sec-statement" data-sec="statement" data-len="2.2">
-    <div class="pin">
-      <div class="st-copy">
-        <p class="eyebrow mono">Statement</p>
-        <h2 class="hl">${C.statement.map((l) => `<span class="hl-line"><span>${esc(l)}</span></span>`).join('')}</h2>
-        <p class="st-sub">${esc(C.statementSub)}</p>
+      <div class="toc">
+        <div class="toc-copy">
+          <p class="eyebrow mono">Seven floors</p>
+          <h2 class="toc-title" data-split>The site, floor by floor.</h2>
+          <p class="toc-text">Every floor of the A is one part of this page. Read a floor and it goes back into the A. Finish the page and the A is whole again.</p>
+        </div>
+        <div class="toc-a" style="aspect-ratio:100 / ${num(tb.height)}" data-spread="${TOC_SPREAD}">${tocSlabs}<ol class="toc-labels mono">${tocLabels}</ol></div>
       </div>
     </div>
   </section>
 
-  <section class="sec sec-signal" data-sec="signal" data-len="2.2">
-    <div class="pin">
-      <p class="sg-word" aria-hidden="true">SIGNAL</p>
-      <div class="sg-copy">
-        <h2 class="hl hl-right">${C.signal.map((l) => `<span class="hl-line"><span>${esc(l)}</span></span>`).join('')}</h2>
-        <p class="st-sub">${esc(C.signalSub)}</p>
-      </div>
-    </div>
+  <section class="sec fl fl-statement" data-sec="f1" data-floor="1" aria-label="Statement">
+    <div class="pin">${flIn(1)}
+      ${head(1)}
+      ${plan(1, slot(e1.slabs[0], e1, `<div class="slot-in st-in"><h2 class="hl">${C.statement.map((l) => `<span class="hl-line"><span>${esc(l)}</span></span>`).join('')}</h2></div>`, 'is-ink'))}
+      <p class="st-sub">${esc(C.statementSub)}</p>
+    </div></div>
   </section>
 
-  <section class="sec sec-signalout" data-sec="signalout" data-len="1.2"><div class="pin"></div></section>
-
-  <section class="sec sec-caps" data-sec="capabilities" data-len="${C.capabilities.length + 0.8}" aria-label="Capabilities">
-    <div class="pin">
-      <h2 class="eyebrow mono cap-head">Capabilities</h2>
-      <div class="cap-list-wrap">${caps}
+  <section class="sec fl fl-caps" data-sec="f2" data-floor="2" aria-label="Capabilities">
+    <div class="pin">${flIn(2)}
+      ${head(2)}
+      ${plan(2, slot(e2.slabs[0], e2, `<div class="slot-vids">${C.capabilities.map((c) => `<video class="cap-video" data-cap="${c.key}" muted loop playsinline preload="metadata" poster="${r}assets/video/${c.video}.jpg" aria-label="${esc(c.title)}, an abstract loop"><source src="${r}assets/video/${c.video}.webm" type="video/webm"><source src="${r}assets/video/${c.video}.mp4" type="video/mp4"></video>`).join('')}</div>`))}
+      <div class="plan-under caps-under">${C.capabilities.map((c, i) => `
+        <article class="cap-item"><p class="cap-count code">${pad(i + 1)} / ${pad(C.capabilities.length)}</p><h3 class="cap-title" data-split>${esc(c.title)}</h3><p class="cap-text">${esc(c.text)}</p><ul class="cap-list mono">${c.items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></article>`).join('')}
       </div>
-    </div>
+    </div></div>
+  </section>
+${projectFloor(3)}
+${projectFloor(4)}
+  <section class="sec fl fl-signal" data-sec="f5" data-floor="5" aria-label="Signal">
+    <div class="pin">${flIn(5)}
+      ${head(5)}
+      <h2 class="hl sg-hl">${C.signal.map((l) => `<span class="hl-line"><span>${esc(l)}</span></span>`).join('')}</h2>
+      ${plan(5, slot(e5.slabs[0], e5, `<div class="slot-in sg-in"><p class="sg-avail mono"><i></i>${esc(C.available)}</p><a class="sg-mail" href="mailto:${C.email}">${esc(C.email)}</a><button type="button" class="sg-copy mono" data-copy="${esc(C.email)}">Copy</button></div>`, 'is-amber'))}
+      <p class="st-sub sg-sub">${esc(C.signalSub)}</p>
+    </div></div>
   </section>
 
-  <section class="sec sec-flag" data-sec="flagship" data-len="1.6">
-    <div class="pin">
-      <div class="fl-frame">
-        <span class="fl-x tl"></span><span class="fl-x tr"></span><span class="fl-x bl"></span><span class="fl-x br"></span>
-        <p class="eyebrow mono">Flagship · ${statusChip(flag)}</p>
-        <h2 class="fl-title" data-split>${esc(flag.title)}</h2>
-        <p class="fl-text">${esc(flag.summary)}</p>
-        <dl class="fl-spec mono"><div><dt>Kind</dt><dd>${esc(flag.kind)}</dd></div><div><dt>Year</dt><dd>${flag.year}</dd></div><div><dt>Runs on</dt><dd>A server I keep alive myself</dd></div></dl>
-        <a class="fl-link mono" href="${r}work/${flag.slug}/" data-link><span class="ring" aria-hidden="true">↗</span>About Ordium</a>
-      </div>
-    </div>
+  <section class="sec fl fl-base" data-sec="f6" data-floor="6" aria-label="About and contact">
+    <div class="pin">${flIn(6)}
+      ${head(6)}
+      ${plan(6, slot(e6.slabs[0], e6, `<div class="slot-in leg-in"><p class="leg-k mono">About</p><p class="leg-text">${esc(C.aboutShort)}</p><a class="leg-link mono" href="${r}about/" data-link>More about me ${arrow}</a></div>`, 'is-leg')
+        + `<p class="base-mid mono" style="left:${num((e6.slabs[0].x + e6.slabs[0].w - e6.x0) / e6.w * 100)}%;right:${num((e6.x1 - e6.slabs[1].x) / e6.w * 100)}%">The A stands on these two.<br>Keep going and it rebuilds itself.</p>`
+        + slot(e6.slabs[1], e6, `<div class="slot-in leg-in"><p class="leg-k mono">Contact</p><a class="leg-mail" href="mailto:${C.email}">${esc(C.email)}</a><a class="leg-link mono" href="${C.github}" rel="noopener">GitHub ${arrow}</a></div>`, 'is-leg'))}
+    </div></div>
   </section>
 
-  <section class="sec sec-outro" data-sec="outro" data-len="1.7">
+  <section class="sec sec-outro" data-sec="outro">
     <div class="pin">
+      <div class="ot-ground" aria-hidden="true"><i></i><p class="mono"><span>F0 – F6</span><span>${MARK.floors} floors · ${MARK.slabs.length} slabs · rebuilt</span></p></div>
       <p class="ot-word" aria-label="${esc(C.name)}">${mark('ot-mark')}<span class="ot-rest" data-split>DHAM MOMEN</span></p>
       <p class="ot-line">${esc(C.tagline)} <a href="${r}contact/" data-link class="ot-cta">Write to me ${arrow}</a></p>
     </div>

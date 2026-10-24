@@ -21,8 +21,15 @@ function floors() {
   return slabs;
 }
 
-const SLABS = floors();
-export const MARK = { body: BODY, slabs: SLABS, bar: SLABS.find((s) => s.amber), radius: RADIUS, floors: FLOORS };
+const SLABS = floors().map((s, i) => ({ ...s, i }));
+
+// each floor's horizontal extent: the homepage lays a floor's section out on exactly this footprint
+const extent = (f) => {
+  const fs = SLABS.filter((s) => s.floor === f);
+  const x0 = Math.min(...fs.map((s) => s.x)), x1 = Math.max(...fs.map((s) => s.x + s.w));
+  return { x0, x1, w: r1(x1 - x0), slabs: fs };
+};
+export const MARK = { body: BODY, slabs: SLABS, bar: SLABS.find((s) => s.amber), radius: RADIUS, floors: FLOORS, h: H, extent };
 
 export const slabRects = (cls = (s) => (s.amber ? 'mark-bar' : 'mark-body')) =>
   SLABS.map((s) => `<rect class="${cls(s)}" x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" rx="${RADIUS}"/>`).join('');
