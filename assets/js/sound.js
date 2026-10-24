@@ -1,5 +1,7 @@
-// Opt-in sound: an ambient loop and three short effects, played through Web Audio.
+// Opt-in sound: the generated music (music.js) and three short effects, played through Web Audio.
 // The choice is remembered per browser; nothing plays until the visitor turns it on.
+import { Music } from './music.js';
+
 const url = (n) => new URL(`../sound/${n}.mp3`, import.meta.url).href;
 const KEY = 'am-sound';
 
@@ -7,6 +9,7 @@ export class Sound {
   constructor() {
     this.on = false; this.ctx = null; this.buffers = {}; this.lastTick = 0;
     this.toggles = [];
+    this.held = new Set();      // floors already read, so the chord is right whenever sound comes on
   }
 
   get choice() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
@@ -30,15 +33,7 @@ export class Sound {
     this.on = true; this.sync();
     const now = this.ctx.currentTime;
     this.master.gain.cancelScheduledValues(now); this.master.gain.setTargetAtTime(1, now, 0.6);
-    if (!this.ambient) {
-      const buf = await this.load('ambient').catch(() => null); if (!buf || !this.on) return;
-      const src = this.ctx.createBufferSource(); src.buffer = buf; src.loop = true;
-      // MP3 encoders pad both ends; loop inside the padding so the seam stays silent
-      src.loopStart = 0.06; src.loopEnd = buf.duration - 0.06;
-      const g = this.ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(0.42, this.ctx.currentTime, 1.2);
-      src.connect(g).connect(this.master); src.start(0, 0.06);
-      this.ambient = { src, g };
-    }
+    if (!this.music) { this.music = new Music(this.ctx, this.master); this.held.forEach((i) => this.music.hold(i, true)); }
     ['work-in', 'wipe', 'tick'].forEach((n) => this.load(n).catch(() => {}));
   }
 
@@ -56,6 +51,11 @@ export class Sound {
     const g = this.ctx.createGain(); g.gain.value = gain;
     src.connect(g).connect(this.master); src.start();
   }
+
+  // the music: a floor joins or leaves the chord, a floor's note, the whole chord
+  hold(i, on) { if (on) this.held.add(i); else this.held.delete(i); this.music?.hold(i, on); }
+  note(i, level) { if (this.on) this.music?.pluck(i, level); }
+  chord() { if (this.on) this.music?.chord(); }
 
   tick() {
     const t = performance.now(); if (t - this.lastTick < 38) return; this.lastTick = t;

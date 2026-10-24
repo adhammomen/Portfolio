@@ -42,10 +42,13 @@ export class Home {
     this.cleanup = [];
     main.querySelectorAll('.fl-projects .slot, .fl-projects .under').forEach((el) => {
       const i = el.classList.contains('slot') ? +el.dataset.slab : +el.querySelector('[data-shatter]').dataset.shatter;
-      const on = () => { gl.setSlab(i, { hover: 1 }); el.closest('.pin').classList.add('is-hover'); };
+      const on = () => { gl.setSlab(i, { hover: 1 }); el.closest('.pin').classList.add('is-hover'); sound.note(i, 0.5); };
       const off = () => { gl.setSlab(i, { hover: 0 }); el.closest('.pin').classList.remove('is-hover'); };
       el.addEventListener('pointerenter', on); el.addEventListener('pointerleave', off);
     });
+    // every floor plays its notes under the pointer: in the dock and in the contents
+    const play = (e) => { const b = e.target.closest?.('[data-to]'); if (b && !b.contains(e.relatedTarget)) MARK.extent(+b.dataset.to).slabs.forEach((sl, k) => sound.note(sl.i, k ? 0.4 : 0.6)); };
+    document.addEventListener('pointerover', play); this.cleanup.push(() => document.removeEventListener('pointerover', play));
     const jump = (e) => { const b = e.target.closest('[data-to]'); if (b) this.goTo(+b.dataset.to); };
     document.addEventListener('click', jump); this.cleanup.push(() => document.removeEventListener('click', jump));
     // copy the email address
@@ -113,6 +116,7 @@ export class Home {
 
   update(scroll) {
     const p = scroll / this.vh; this.p = p;
+    const edgeOnce = (key, v) => { const was = this.flags[key]; this.flags[key] = v; return v && !was; };
     const { P, gl } = this, F = P.f, vh = this.vh;
 
     // ---------- the A as one object: hero box → exploded contents → the wordmark ----------
@@ -163,7 +167,14 @@ export class Home {
       gl.setSlab(i, { g, x: free.x, y: free.y, h: free.h, z, develop: f >= 2 && f <= 4 ? develop : 0, hide, frost: f === 6 ? 0.42 : -1 });
       // the dock shows what has been read
       const r = this.dockRects[i];
-      if (r) { const was = this.read[i]; const now = dockT > 0.97 && back < 0.5; if (was !== now) { this.read[i] = now; r.classList.toggle('is-read', now); if (now && was === false) this.sound.tick(); } }
+      if (r) {
+        const was = this.read[i], now = dockT > 0.97 && back < 0.5;
+        if (was !== now) {
+          this.read[i] = now; r.classList.toggle('is-read', now);
+          this.sound.hold(i, now);                         // the floor joins the chord
+          if (now && was === false) this.sound.note(i, 0.8);
+        }
+      }
     }
 
     // ---------- the canvas ----------
@@ -182,6 +193,7 @@ export class Home {
     const ground = ramp(p, P.land - 0.2, P.land - 0.02) * (1 - ramp(p, P.land + 0.04, P.outro - 0.1));
     for (const el of this.otText) el.style.opacity = ramp(p, P.outro - 0.16, P.outro - 0.02).toFixed(3);
     if (this.ground) { this.ground.style.opacity = ground.toFixed(3); this.ground.classList.toggle('is-on', ground > 0.5); }
+    if (edgeOnce('land', ground > 0.6)) this.sound.chord();
 
     // ---------- text layers ----------
     const win = (c, a = 0.3, b = 0.47) => 1 - ramp(Math.abs(p - c), a, b);
@@ -232,6 +244,7 @@ export class Home {
     this.cleanup.forEach((f) => f());
     this.gl.resetSlabs();
     this.dockRects.forEach((r) => r.classList.remove('is-read', 'is-here'));
+    MARK.slabs.forEach((sl) => this.sound.hold(sl.i, false));
     document.body.classList.remove('is-light', 'is-end', 'is-top');
   }
 }
