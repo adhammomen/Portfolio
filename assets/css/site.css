@@ -388,7 +388,7 @@ body[data-page="home"] .ft-word { display: none; }
 .wx-kind { font-size: 12px; color: var(--mute); }
 
 .dt-ghost { position: absolute; left: 0; right: 0; top: calc(var(--hd) + 2vh); font: 400 clamp(120px, 24vw, 400px)/.9 var(--serif); letter-spacing: .02em; color: rgba(238,241,243,.055); white-space: nowrap; overflow: hidden; pointer-events: none; padding-left: var(--pad); user-select: none; }
-.dt-head { position: relative; display: grid; gap: 22px; max-width: 980px; margin-bottom: 10vh; }
+.dt-head { position: relative; display: grid; gap: 22px; max-width: 980px; margin-bottom: 7vh; }
 .dt-back { font-size: 13px; color: var(--mute); justify-self: start; } .dt-back:hover { color: var(--fg); }
 .dt-title { font: 600 clamp(52px, 8.4vw, 132px)/.9 var(--display); font-stretch: 116%; letter-spacing: -.02em; }
 .dt-lead { font: 300 clamp(18px, 1.7vw, 24px)/1.5 var(--sans); max-width: 40ch; }

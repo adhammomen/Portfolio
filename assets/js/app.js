@@ -65,14 +65,41 @@ function mount() {
 }
 
 // ---------- page transitions: fade out, fetch, swap, fade in; the canvas stays ----------
+// A project opened from its floor shatters instead: its pane breaks into pieces that land on the project page's
+// first image. Going back from that page runs it in reverse, into the slab on the floor you came from.
 let busy = false;
-async function navigate(href, push) {
+let shattered = null;   // { i, slug, path } of the last project opened that way
+const rectOf = (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }; };
+const clean = (p) => p.replace(/index\.html$/, '');
+const isHome = (url) => { const h = document.querySelector('.hd-logo'); return !!h && clean(new URL(h.href).pathname) === clean(url.pathname); };
+const tween = (vars) => new Promise((res) => { window.gsap.killTweensOf(gl, 'shatterT'); window.gsap.to(gl, { ...vars, onComplete: res }); });
+
+async function navigate(href, push, fx = {}) {
   if (busy) return; busy = true;
   closeMenu();
+  const url = new URL(href, location.href);
+  // remember where the homepage was, so coming back lands on the same floor
+  if (page?.home && push) history.replaceState({ y: lenis ? lenis.scroll : window.scrollY }, '');
+  const restoreY = !push ? history.state?.y : null;
+
+  let out = null, back = null;
+  if (gl && fx.shatter != null && page?.home) {
+    const i = fx.shatter, slug = url.pathname.match(/work\/([^/]+)\/?$/)?.[1], tex = gl.projectTex?.[slug];
+    if (tex) {
+      out = { i, slug };
+      gl.shatter(tex, page.home.slot[i]); gl.hideSlab(i, true);
+      sound.play('work-in', { gain: 0.5, rate: 1.1 });
+      tween({ shatterT: 0.4, duration: 0.65, ease: 'power2.out' });
+    }
+  } else if (gl && !push && shattered && isHome(url) && document.querySelector('.dt-fig img')) {
+    const fig = document.querySelector('.dt-fig img'), tex = gl.projectTex?.[shattered.slug];
+    if (tex) { back = { ...shattered }; gl.shatter(tex, rectOf(fig)); fig.style.opacity = 0; tween({ shatterT: 0.4, duration: 0.65, ease: 'power2.out' }); }
+  }
   document.body.dataset.phase = 'out';
-  if (gl) window.gsap.to(gl, { fade: 0.25, duration: 0.5, ease: 'power2.in' });
+  if (gl && !out && !back) window.gsap.to(gl, { fade: 0.25, duration: 0.5, ease: 'power2.in' });
+
   let html = null;
-  try { [html] = await Promise.all([fetch(href).then((r) => (r.ok ? r.text() : Promise.reject(r.status))), wait(500)]); }
+  try { [html] = await Promise.all([fetch(href).then((r) => (r.ok ? r.text() : Promise.reject(r.status))), wait(out || back ? 560 : 500)]); }
   catch (e) { location.href = href; return; }
   const doc = new DOMParser().parseFromString(html, 'text/html');
   page?.destroy();
@@ -83,11 +110,35 @@ async function navigate(href, push) {
   if (lenis) lenis.scrollTo(0, { immediate: true, force: true }); else window.scrollTo(0, 0);
   bindChrome();
   mount();
+  // the homepage only has its full height once mounted, so a remembered position is restored after
+  const y = restoreY != null ? restoreY : 0;
+  if (y) { lenis?.resize(); if (lenis) lenis.scrollTo(y, { immediate: true, force: true }); else window.scrollTo(0, y); }
+  page?.update(y);
   document.body.dataset.phase = 'in';
-  if (gl) window.gsap.to(gl, { fade: 1, duration: 0.9, ease: 'power2.out' });
+  if (gl && !out && !back) window.gsap.to(gl, { fade: 1, duration: 0.9, ease: 'power2.out' });
   setTimeout(() => { document.body.dataset.phase = 'ready'; }, 900);
   document.getElementById('main')?.focus?.({ preventScroll: true });
   busy = false;
+
+  if (out) {
+    // land on the project page's first image, then hand over to the real one
+    const img = document.querySelector('.dt-fig img');
+    shattered = { ...out };
+    if (img) {
+      img.style.opacity = 0;
+      gl.shatterTo(rectOf(img));
+      await tween({ shatterT: 1, duration: 1.15, ease: 'power3.inOut' });
+      img.style.transition = 'opacity .45s ease'; img.style.opacity = 1;
+      await wait(380);
+    }
+    gl.shatterEnd(); gl.hideSlab(out.i, false);
+  } else if (back) {
+    gl.hideSlab(back.i, true);
+    if (page?.home) gl.shatterTo(page.home.slot[back.i]);
+    await tween({ shatterT: 1, duration: 1.15, ease: 'power3.inOut' });
+    gl.shatterEnd(); gl.hideSlab(back.i, false);
+    shattered = null;
+  }
 }
 document.addEventListener('click', (e) => {
   const a = e.target.closest('a[data-link]');
@@ -96,7 +147,7 @@ document.addEventListener('click', (e) => {
   if (url.origin !== location.origin) return;
   e.preventDefault();
   if (url.pathname === location.pathname) { closeMenu(); lenis ? lenis.scrollTo(0, { duration: 1.2 }) : window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
-  navigate(url.href, true);
+  navigate(url.href, true, { shatter: a.dataset.shatter != null ? +a.dataset.shatter : null });
 });
 window.addEventListener('popstate', () => navigate(location.href, false));
 
@@ -185,4 +236,4 @@ function offerSound() {
 
 boot();
 // ?debug exposes the internals and lets tweens run in real time even when frames are slow (software rendering)
-if (new URLSearchParams(location.search).has('debug')) { window.__am = { gl, lenis, get page() { return page; } }; window.addEventListener('load', () => window.gsap?.ticker.lagSmoothing(0)); }
+if (new URLSearchParams(location.search).has('debug')) { window.__am = { gl, lenis, get page() { return page; } }; window.addEventListener('load', () => { window.gsap?.ticker.lagSmoothing(0); const k = +new URLSearchParams(location.search).get('slow'); if (k) window.gsap.globalTimeline.timeScale(k); }); }

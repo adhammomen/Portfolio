@@ -169,6 +169,7 @@ export class GL {
     this.buildBackground();
     this.buildMark();
     this.buildWall();
+    this.buildShatter();
     this.buildPost();
 
     this.resize();
@@ -328,6 +329,73 @@ export class GL {
     this.wall.position.set(0, 0.3, 2.5);
     this.dark.add(this.wall);
   }
+
+  // ---------- shatter: a pane breaks into pieces that fly into a rect on the next page ----------
+  // each piece carries its part of the picture; t: 0 → .4 bursts toward the camera, .4 → 1 lands on the target
+  buildShatter() {
+    const NX = 10, NY = 6;
+    const box = new THREE.BoxGeometry(1, 1, 1);
+    const geo = new THREE.InstancedBufferGeometry();
+    geo.index = box.index; geo.attributes.position = box.attributes.position; geo.attributes.normal = box.attributes.normal; geo.attributes.uv = box.attributes.uv;
+    const cell = [], rnd = [];
+    for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) { cell.push(x, y); rnd.push(Math.random(), Math.random(), Math.random(), Math.random()); }
+    geo.setAttribute('aCell', new THREE.InstancedBufferAttribute(new Float32Array(cell), 2));
+    geo.setAttribute('aRand', new THREE.InstancedBufferAttribute(new Float32Array(rnd), 4));
+    geo.instanceCount = NX * NY;
+    const u = this.shU = { uTex: { value: null }, uFrom: { value: new THREE.Vector4() }, uTo: { value: new THREE.Vector4() }, uT: { value: 0 }, uGrid: { value: new THREE.Vector2(NX, NY) }, uDepth: { value: 0.05 } };
+    const mat = new THREE.ShaderMaterial({
+      uniforms: u,
+      vertexShader: /* glsl */`
+        attribute vec2 aCell; attribute vec4 aRand;
+        uniform vec4 uFrom, uTo; uniform float uT, uDepth; uniform vec2 uGrid;
+        varying vec2 vUv, vLocal; varying vec3 vN; varying float vFront, vLift;
+        mat3 rot(vec3 a){ float cx=cos(a.x), sx=sin(a.x), cy=cos(a.y), sy=sin(a.y), cz=cos(a.z), sz=sin(a.z);
+          return mat3(cy*cz, cy*sz, -sy, sx*sy*cz-cx*sz, sx*sy*sz+cx*cz, sx*cy, cx*sy*cz+sx*sz, cx*sy*sz-sx*cz, cx*cy); }
+        void main(){
+          vec2 c = (aCell + .5)/uGrid;
+          float t = clamp((uT - aRand.x*.18)/.82, 0., 1.);
+          float land = smoothstep(.32, 1., t);
+          float lift = sin(3.14159*min(t*1.15, 1.));
+          vec3 a = vec3(uFrom.xy + (c - .5)*uFrom.zw, 0.);
+          vec3 b = vec3(uTo.xy + (c - .5)*uTo.zw, 0.);
+          vec3 scatter = vec3((c - .5)*vec2(2.6, 1.8) + (aRand.yz - .5)*1.6, .9 + aRand.w*1.6);
+          vec3 p = mix(a, b, land) + scatter*lift;
+          vec2 size = mix(uFrom.zw, uTo.zw, land)/uGrid*(1. - .08*lift);
+          vec3 ang = (aRand.yzw - .5)*vec3(5., 5., 3.)*lift;
+          vec3 lp = position*vec3(size, uDepth);
+          vec3 w = rot(ang)*lp + p;
+          vN = normalize(rot(ang)*normal);
+          vFront = step(.5, normal.z);
+          vUv = c + position.xy/uGrid;
+          vLocal = position.xy; vLift = lift;
+          gl_Position = projectionMatrix*viewMatrix*vec4(w, 1.);
+        }`,
+      fragmentShader: /* glsl */`
+        uniform sampler2D uTex; varying vec2 vUv, vLocal; varying vec3 vN; varying float vFront, vLift;
+        void main(){
+          vec3 img = texture2D(uTex, vUv).rgb;
+          float vEdge = max(abs(vLocal.x), abs(vLocal.y))*2.;
+          vec3 side = vec3(.55, .62, .7)*(.25 + .6*max(0., dot(vN, normalize(vec3(.3, .8, .6)))));
+          vec3 c = mix(side, img, vFront);
+          c += vec3(.9, .95, 1.)*pow(vEdge, 18.)*.4*vFront*smoothstep(0., .25, vLift);   // a glass edge while it flies, gone once it lands
+          c += vec3(1.)*pow(max(0., dot(vN, normalize(vec3(-.4, .6, .7)))), 24.)*.6*vLift; // a glint as it turns
+          gl_FragColor = vec4(c, 1.);
+        }`,
+    });
+    this.shards = new THREE.Mesh(geo, mat);
+    this.shards.frustumCulled = false; this.shards.visible = false;
+    this.dark.add(this.shards);
+    this.hidden = new Set();
+  }
+
+  // rects in CSS px: { x, y (centre), w, h }
+  rectWorld(r) { const px = this.pxWorld(); return new THREE.Vector4((r.x - this.w / 2) * px, -(r.y - this.h / 2) * px, r.w * px, r.h * px); }
+  shatter(tex, from) { this.shU.uTex.value = tex; this.shU.uFrom.value.copy(this.rectWorld(from)); this.shU.uTo.value.copy(this.shU.uFrom.value); this.shU.uT.value = 0; this.shards.visible = true; }
+  shatterTo(to) { this.shU.uTo.value.copy(this.rectWorld(to)); }
+  get shatterT() { return this.shU.uT.value; }
+  set shatterT(v) { this.shU.uT.value = v; }
+  shatterEnd() { this.shards.visible = false; }
+  hideSlab(i, on) { if (on) this.hidden.add(i); else this.hidden.delete(i); }
 
   buildPost() {
     const r = this.renderer;
@@ -524,7 +592,7 @@ export class GL {
       const appear = 0.001 + 0.999 * Math.min(1, (g > 0.5 ? k : 1) * 3);
       sl.mesh.scale.setScalar(s * appear);
       sl.mesh.morphTargetInfluences[0] = 1 - g;              // chunky in the A, a thin pane on its own
-      sl.mesh.visible = !(T.hide > 0.5) && s > 0.0005;
+      sl.mesh.visible = !(T.hide > 0.5) && s > 0.0005 && !this.hidden.has(sl.i);
       sl.edges.position.copy(sl.mesh.position); sl.edges.quaternion.copy(sl.mesh.quaternion); sl.edges.scale.copy(sl.mesh.scale);
       sl.edges.visible = sl.mesh.visible;
 
