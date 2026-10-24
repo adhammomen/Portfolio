@@ -10,18 +10,22 @@ const AMBER = new THREE.Color('#ffb43a');
 const PAPER = new THREE.Color('#e6e3dc');
 const INK = new THREE.Color('#0c0e10');
 
-// mark units (0..100, y down) -> world units (height 2, centred)
-const mx = (x) => (x - 50) / 50;
-const my = (y) => (50 - y) / 50;
+// mark units (0..100) -> world units at scale 1 (the whole mark is 2 units tall)
+const MU = 1 / 50;
+const BEVEL = 0.035, DEPTH = 0.34, BEVEL_T = 0.06;
+// out in its floor a slab morphs into a pane: same outline, but a thin edge and a small bevel at any size (CSS px)
+const PANE = { bevel: 9, bevelT: 6, depth: 16, radius: 22 };
 
 // ---------- the state the director animates ----------
+// the group is the A as one object: its box on screen (centre in CSS px, px per mark unit), how far its floors are
+// pushed apart, and how much it sways. Each slab is either in the group or out on its own (see setSlab).
 export const DEFAULTS = {
-  camZ: 7, camY: 0, camX: 0,
-  mx: 0, my: 0, mz: 0, ms: 1, mrx: 0, mry: 0, spin: 1, frost: 0.14,
-  bar: 0, wall: 1, word: 0, wordX: 0,
-  car: 0, carIdx: 0, cap: 0, capIdx: 0,
-  curtain: 0, dissolve: 0, sub: 0, grid: 1, flat: 0, light: 0.55,
+  camZ: 7,
+  gx: 0, gy: 0, gu: 4, gz: 0, spread: 1,
+  mrx: 0, mry: 0, spin: 1, frost: 0.14,
+  wall: 1, curtain: 0, dissolve: 0, sub: 0, grid: 1, flat: 0, signal: 0,
 };
+const SLAB_DEFAULT = { g: 1, x: 0, y: 0, h: 10, z: 0, develop: 0, hover: 0, hide: 0, frost: -1, dx: 0, dy: 0, rot: 0 };
 
 const FS_VERT = /* glsl */`varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }`;
 const NOISE = /* glsl */`
@@ -69,7 +73,7 @@ function makeEnvironment(renderer) {
   panel(5, 26, '#dfe9ff', 5, [18, 2, -4], [0, 0, 0]);      // tall right softbox
   panel(4, 18, '#ffffff', 4, [-18, 0, -8], [0, 0, 0]);     // left rim
   panel(16, 3, '#b8c8ff', 2.5, [0, -6, -20], [0, 0, 0]);
-  panel(10, 10, '#8fa6ff', 1.2, [0, 0, 22], [0, 0, 0]);    // soft front fill so the faces facing the camera are never black     // back floor bounce
+  panel(60, 60, '#dfe4ea', 0.32, [0, 0, 24], [0, 0, 0]);   // soft, even front fill: camera-facing faces never go black, and flat panes show no hard reflection
   panel(4, 1.4, '#ffb43a', 6.0, [9, -5, 10], [0, 0, 0]);     // the amber status light, caught in the edges
   const pmrem = new THREE.PMREMGenerator(renderer);
   const env = pmrem.fromScene(scene, 0.02).texture;
@@ -77,12 +81,17 @@ function makeEnvironment(renderer) {
   return env;
 }
 
-// ---------- mark geometry ----------
-function markShapes() {
-  const body = new THREE.Shape(MARK.body.map(([x, y]) => new THREE.Vector2(mx(x), my(y))));
-  const b = MARK.bar;
-  const bar = new THREE.Shape([new THREE.Vector2(mx(b.x), my(b.y)), new THREE.Vector2(mx(b.x + b.w), my(b.y)), new THREE.Vector2(mx(b.x + b.w), my(b.y + b.h)), new THREE.Vector2(mx(b.x), my(b.y + b.h))]);
-  return { body, bar };
+// ---------- mark geometry: one rounded slab per floor, centred on itself ----------
+// inset = bevel, so the bevelled slab's outer silhouette is exactly the slab in mark.js
+function slabShape(w, h, inset = 0, radius = MARK.radius * MU) {
+  const x0 = -w / 2 + inset, x1 = w / 2 - inset, y0 = -h / 2 + inset, y1 = h / 2 - inset;
+  const r = Math.max(0.004, Math.min(radius - inset, (x1 - x0) / 2, (y1 - y0) / 2));
+  const sh = new THREE.Shape();
+  sh.moveTo(x0 + r, y0); sh.lineTo(x1 - r, y0); sh.quadraticCurveTo(x1, y0, x1, y0 + r);
+  sh.lineTo(x1, y1 - r); sh.quadraticCurveTo(x1, y1, x1 - r, y1);
+  sh.lineTo(x0 + r, y1); sh.quadraticCurveTo(x0, y1, x0, y1 - r);
+  sh.lineTo(x0, y0 + r); sh.quadraticCurveTo(x0, y0, x0 + r, y0);
+  return sh;
 }
 
 // a little noise texture for the frosted variation in the glass
@@ -93,21 +102,38 @@ function noiseTexture() {
   return t;
 }
 
-// a big word drawn into a texture, cut out with alphaTest so the glass refracts it
-function wordTexture(text) {
-  const c = document.createElement('canvas'); c.width = 2048; c.height = 512;
-  const g = c.getContext('2d');
-  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  try { g.fontStretch = 'expanded'; } catch (e) { /* older browsers draw the normal width */ }
-  g.font = '800 400px Archivo, Arial, sans-serif';
-  g.fillText(text, 1024, 270);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
-  return t;
-}
-
 function loadImage(src) {
   return new Promise((res) => { const im = new Image(); im.decoding = 'async'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
 }
+
+// what a slab shows inside its glass: an image, or three videos side by side. It develops out of line art.
+const CONTENT_FRAG = NOISE + /* glsl */`
+  uniform sampler2D uA, uB, uC; uniform float uMode, uDev, uPlaneA, uTexA, uHover; uniform vec2 uHalf; uniform float uRad;
+  varying vec2 vUv;
+  vec2 cover(vec2 uv, float pa, float ta){ vec2 s = pa > ta ? vec2(1., ta/pa) : vec2(pa/ta, 1.); return (uv - .5)*s + .5; }
+  vec3 pick(float i, vec2 uv){ return i < .5 ? texture2D(uA, uv).rgb : (i < 1.5 ? texture2D(uB, uv).rgb : texture2D(uC, uv).rgb); }
+  void main(){
+    vec2 p = (vUv - .5)*2.*uHalf; vec2 q = abs(p) - uHalf + uRad;
+    if (length(max(q, 0.)) - uRad > 0.) discard;
+    vec3 c; float frame = 1.;
+    if (uMode < .5) { c = texture2D(uA, cover(vUv, uPlaneA, uTexA)).rgb; }
+    else {
+      float x = vUv.x*3.; float i = floor(min(x, 2.999)); vec2 l = vec2(fract(x), vUv.y);
+      float gx = .012*uPlaneA;
+      frame = step(gx, l.x)*step(l.x, 1. - gx);
+      c = pick(i, cover(vec2((l.x - gx)/(1. - 2.*gx), l.y), uPlaneA/3., uTexA))*frame;
+    }
+    float lum = dot(c, vec3(.3, .55, .15));
+    float e = clamp(fwidth(lum)*7., 0., 1.);
+    float n = noise(vUv*vec2(uPlaneA, 1.)*3.5)*.72 + noise(vUv*vec2(uPlaneA, 1.)*28.)*.28;
+    float th = uDev*1.3 - .15;
+    float k = smoothstep(n - .07, n + .07, th);
+    vec3 line = vec3(.5, .7, 1.)*e*smoothstep(0., .3, uDev)*1.5 + vec3(.008, .01, .014);
+    vec3 col = mix(line, c*(1.04 + .12*uHover), k);
+    col += exp(-pow((n - th)*18., 2.))*vec3(1., .78, .45)*.7*step(.01, uDev)*step(uDev, .99);
+    gl_FragColor = vec4(col, 1.);
+  }`;
+const CONTENT_VERT = /* glsl */`varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position, 1.); }`;
 
 export class GL {
   constructor(canvas, { mobile = false } = {}) {
@@ -125,9 +151,9 @@ export class GL {
     this.instant = true;           // first frame jumps to target
     this.time = 0; this.reveal = 0; this.fade = 1;
     this.userQ = new THREE.Quaternion();
+    this.groupQ = new THREE.Quaternion();
     this.velocity = 0;              // scroll velocity, fed by the app
     this.pointer = { x: 0.5, y: 0.5, dx: 0, dy: 0, moved: false };
-    this.outroTarget = null;
 
     this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
     this.camera.position.set(0, 0, 7);
@@ -143,10 +169,7 @@ export class GL {
     this.buildBackground();
     this.buildMark();
     this.buildWall();
-    this.buildWord();
-    this.buildCarousel();
-    this.buildCapPlane();
-    this.buildLight();
+    this.buildShatter();
     this.buildPost();
 
     this.resize();
@@ -172,10 +195,6 @@ export class GL {
   }
 
   buildMark() {
-    const { body, bar } = markShapes();
-    const ex = { depth: 0.36, bevelEnabled: true, bevelThickness: 0.07, bevelSize: 0.045, bevelSegments: 6, curveSegments: 1 };
-    const gBody = new THREE.ExtrudeGeometry(body, ex); gBody.translate(0, 0, -0.18);
-    const gBar = new THREE.ExtrudeGeometry(bar, { ...ex, depth: 0.3, bevelThickness: 0.05, bevelSize: 0.03 }); gBar.translate(0, 0, 0.02);
     this.frostMap = noiseTexture();
     this.glass = new THREE.MeshPhysicalMaterial({
       color: 0xffffff, metalness: 0, roughness: 0.14, roughnessMap: this.frostMap,
@@ -189,32 +208,94 @@ export class GL {
       iridescence: 0.4, iridescenceIOR: 1.3, attenuationColor: AMBER, attenuationDistance: 0.6,
       emissive: AMBER, emissiveIntensity: 0.12, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.6, transparent: true,
     });
-    this.markBody = new THREE.Mesh(gBody, this.glass);
-    this.markBar = new THREE.Mesh(gBar, this.barGlass);
-    this.mark = new THREE.Group(); this.mark.add(this.markBody, this.markBar);
-    this.markPivot = new THREE.Group(); this.markPivot.add(this.mark);
-    this.dark.add(this.markPivot);
 
-    // the signal bar: a long emissive bar that grows out of the crossbar (present in both scenes so the dissolve is seamless)
-    const b = MARK.bar;
-    this.barRest = { x: mx(b.x + b.w / 2), y: my(b.y + b.h / 2), w: (b.w / 50), h: (b.h / 50) };
-    const barGeo = new THREE.BoxGeometry(1, 1, 0.3);
-    this.signalMat = new THREE.MeshBasicMaterial({ color: AMBER.clone().multiplyScalar(2.4) });
-    this.signalDark = new THREE.Mesh(barGeo, this.signalMat);
-    this.signalLight = new THREE.Mesh(barGeo, this.signalMat);
-    this.dark.add(this.signalDark); this.light.add(this.signalLight);
-
-    // flat outline geometry (no bevel) for the light passage
-    const gFlat = new THREE.ExtrudeGeometry(body, { depth: 0.36, bevelEnabled: false }); gFlat.translate(0, 0, -0.18);
-    const gFlatBar = new THREE.ExtrudeGeometry(bar, { depth: 0.3, bevelEnabled: false }); gFlatBar.translate(0, 0, 0.02);
+    // each floor is its own glass slab with its own material, so one can be clear while the others are frosted
+    this.ex = { depth: DEPTH, bevelEnabled: true, bevelThickness: BEVEL_T, bevelSize: BEVEL, bevelSegments: 5, curveSegments: 6 };
     this.outlineMat = new THREE.LineBasicMaterial({ color: INK, transparent: true, opacity: 0.7 });
     this.outlineBarMat = new THREE.LineBasicMaterial({ color: new THREE.Color('#c27a10'), transparent: true, opacity: 0.9 });
-    this.outline = new THREE.Group();
-    this.outline.add(new THREE.LineSegments(new THREE.EdgesGeometry(gFlat, 20), this.outlineMat));
-    this.outlineBar = new THREE.LineSegments(new THREE.EdgesGeometry(gFlatBar, 20), this.outlineBarMat);
-    this.outline.add(this.outlineBar);
-    this.light.add(this.outline);
+    this.slabs = MARK.slabs.map((sl) => {
+      const w = sl.w * MU, h = sl.h * MU;
+      const g = this.slabGeometry(w, h, 1);
+      const mat = (sl.amber ? this.barGlass : this.glass).clone();
+      const mesh = new THREE.Mesh(g, mat);
+      mesh.morphTargetInfluences = [0];
+      this.dark.add(mesh);
+      const flat = new THREE.ExtrudeGeometry(slabShape(w, h), { depth: DEPTH, bevelEnabled: false, curveSegments: 6 }); flat.translate(0, 0, -DEPTH / 2);
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(flat, 20), sl.amber ? this.outlineBarMat : this.outlineMat);
+      this.light.add(edges);
+      return {
+        i: sl.i, floor: sl.floor, amber: sl.amber, w, h, mesh, edges, mat, content: null,
+        home: { x: sl.x + sl.w / 2, y: sl.y + sl.h / 2, h: sl.h },
+        t: { ...SLAB_DEFAULT }, hover: 0, pane: 1,
+      };
+    });
+    this.assemble = 1;   // 0 → 1 stacks the floors into place, bottom first (played after the loader)
   }
+
+  // the slab as built for the A, with the pane it becomes as a morph target. pane = the scale it will be shown at
+  slabGeometry(w, h, pane, px = 1) {
+    const g = new THREE.ExtrudeGeometry(slabShape(w, h, BEVEL), this.ex); g.translate(0, 0, -DEPTH / 2);
+    const k = px / pane;                                     // CSS px → this slab's own units at that scale
+    const pg = pane > 1
+      ? new THREE.ExtrudeGeometry(slabShape(w, h, PANE.bevel * k, PANE.radius * k), { ...this.ex, depth: PANE.depth * k, bevelThickness: PANE.bevelT * k, bevelSize: PANE.bevel * k })
+      : g.clone();
+    if (pane > 1) pg.translate(0, 0, -PANE.depth * k / 2);
+    g.morphAttributes.position = [pg.attributes.position];
+    g.morphAttributes.normal = [pg.attributes.normal];
+    return g;
+  }
+
+  // called after layout with each slab's height on its floor (CSS px)
+  setPanes(heights) {
+    const px = this.pxWorld();
+    for (const sl of this.slabs) {
+      const hp = heights[sl.i]; if (!hp) continue;
+      const pane = (hp * px) / sl.h;
+      if (Math.abs(pane - sl.pane) < 0.01) continue;
+      const old = sl.mesh.geometry;
+      sl.mesh.geometry = this.slabGeometry(sl.w, sl.h, pane, px);
+      old.dispose();
+      sl.pane = pane;
+      if (sl.content) this.sizeContent(sl);
+    }
+  }
+
+  pxWorld() { return 2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * this.camera.position.z / this.h; }
+
+  // the screen fills the pane's flat face
+  sizeContent(sl) {
+    const k = this.pxWorld() / sl.pane;
+    const b = sl.pane > 1 ? PANE.bevel * k : BEVEL;
+    const inner = { w: sl.w - 2 * b, h: sl.h - 2 * b };
+    const c = sl.content;
+    c.mesh.geometry.dispose();
+    c.mesh.geometry = new THREE.PlaneGeometry(inner.w, inner.h);
+    c.u.uPlaneA.value = inner.w / inner.h; c.u.uHalf.value.set(inner.w / 2, inner.h / 2);
+    c.u.uRad.value = sl.pane > 1 ? Math.max(0.002, (PANE.radius - PANE.bevel) * k) : 0.01;
+  }
+
+  // a screen inside a slab: sits at the slab's middle, so the glass refracts its edges
+  setContent(i, src) {
+    const sl = this.slabs[i]; if (!sl) return;
+    if (!sl.content) {
+      const inner = { w: sl.w - 2 * BEVEL, h: sl.h - 2 * BEVEL };
+      const u = { uA: { value: null }, uB: { value: null }, uC: { value: null }, uMode: { value: 0 }, uDev: { value: 0 }, uHover: { value: 0 },
+        uPlaneA: { value: inner.w / inner.h }, uTexA: { value: 16 / 9 }, uHalf: { value: new THREE.Vector2(inner.w / 2, inner.h / 2) }, uRad: { value: 0.01 } };
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(inner.w, inner.h), new THREE.ShaderMaterial({ uniforms: u, vertexShader: CONTENT_VERT, fragmentShader: CONTENT_FRAG }));
+      m.visible = false; sl.mesh.add(m); sl.content = { mesh: m, u };
+      this.sizeContent(sl);
+    }
+    const u = sl.content.u;
+    if (src.videos) {
+      const keys = ['uA', 'uB', 'uC'];
+      src.videos.slice(0, 3).forEach((v, k) => { const t = new THREE.VideoTexture(v); t.colorSpace = THREE.SRGBColorSpace; u[keys[k]].value = t; });
+      u.uMode.value = 1;
+    } else if (src.texture) { u.uA.value = src.texture; u.uMode.value = 0; }
+  }
+
+  // the director sets every slab each frame: g = 1 keeps it in the A; g = 0 puts it at (x, y) with height h, in CSS px
+  setSlab(i, t) { Object.assign(this.slabs[i].t, t); }
+  resetSlabs() { for (const sl of this.slabs) Object.assign(sl.t, SLAB_DEFAULT); }
 
   buildWall() {
     this.wallU = { uAtlas: { value: null }, uTime: { value: 0 }, uAmt: { value: 1 }, uSlots: { value: 8 } };
@@ -249,80 +330,72 @@ export class GL {
     this.dark.add(this.wall);
   }
 
-  buildWord() {
-    this.wordMat = new THREE.MeshBasicMaterial({ map: null, alphaTest: 0.5, color: 0x000000 });
-    this.word = new THREE.Mesh(new THREE.PlaneGeometry(16, 4), this.wordMat);
-    this.word.position.set(0, 0, -3.2);
-    this.word.visible = false;
-    this.dark.add(this.word);
-  }
-
-  buildCarousel() {
-    this.carousel = new THREE.Group();
-    this.carR = 5.2; this.carStep = 0.66;
-    this.carousel.position.set(0, 0.35, -this.carR - 1.6);
-    this.panels = CONTENT.projects.map((p, i) => {
-      const u = { uTex: { value: null }, uFocus: { value: 0 }, uAlpha: { value: 0 }, uVel: { value: 0 }, uTime: { value: 0 } };
-      const mat = new THREE.ShaderMaterial({
-        uniforms: u,
-        vertexShader: `uniform float uVel, uTime, uFocus; varying vec2 vUv; varying float vEdge;
-          void main(){ vUv = uv; vec3 p = position;
-            float bend = mix(.34, .08, uFocus);
-            p.z += (cos(p.x/1.65*1.5708) - 1.)*bend;
-            p.y += sin(p.x*2.1 + uTime*3.)*uVel*.06;
-            vEdge = abs(uv.x-.5)*2.;
-            gl_Position = projectionMatrix*modelViewMatrix*vec4(p,1.); }`,
-        fragmentShader: `uniform sampler2D uTex; uniform float uFocus, uAlpha, uVel, uTime; varying vec2 vUv; varying float vEdge;
-          void main(){
-            vec2 uv = vUv; float split = .004 + uVel*.012;
-            vec3 c = vec3(texture2D(uTex, uv + vec2(split*vEdge,0.)).r, texture2D(uTex, uv).g, texture2D(uTex, uv - vec2(split*vEdge,0.)).b);
-            c *= mix(.22, 1., uFocus);
-            float e = pow(vEdge, 18.);
-            vec3 irid = .5 + .5*cos(6.2832*(vUv.y*.8 + e*.6 + uTime*.05 + vec3(0.,.33,.67)));
-            c += irid*e*(.08 + uVel*.8);
-            float frame = step(.006, vUv.x)*step(vUv.x, .994)*step(.01, vUv.y)*step(vUv.y, .99);
-            c = mix(vec3(.5,.55,.6)*.35, c, frame);
-            gl_FragColor = vec4(c*uAlpha, 1.);
-          }`,
-      });
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 3.3 * 9 / 16, 40, 1), mat);
-      const a = i * this.carStep;
-      m.position.set(Math.sin(a) * this.carR, 0, Math.cos(a) * this.carR);
-      m.rotation.y = a;
-      this.carousel.add(m);
-      return { mesh: m, u, slug: p.slug };
-    });
-    this.carousel.visible = false;
-    this.dark.add(this.carousel);
-  }
-
-  buildCapPlane() {
-    this.capU = { uA: { value: null }, uB: { value: null }, uC: { value: null }, uIdx: { value: 0 }, uAlpha: { value: 0 }, uTime: { value: 0 } };
+  // ---------- shatter: a pane breaks into pieces that fly into a rect on the next page ----------
+  // each piece carries its part of the picture; t: 0 → .4 bursts toward the camera, .4 → 1 lands on the target
+  buildShatter() {
+    const NX = 10, NY = 6;
+    const box = new THREE.BoxGeometry(1, 1, 1);
+    const geo = new THREE.InstancedBufferGeometry();
+    geo.index = box.index; geo.attributes.position = box.attributes.position; geo.attributes.normal = box.attributes.normal; geo.attributes.uv = box.attributes.uv;
+    const cell = [], rnd = [];
+    for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) { cell.push(x, y); rnd.push(Math.random(), Math.random(), Math.random(), Math.random()); }
+    geo.setAttribute('aCell', new THREE.InstancedBufferAttribute(new Float32Array(cell), 2));
+    geo.setAttribute('aRand', new THREE.InstancedBufferAttribute(new Float32Array(rnd), 4));
+    geo.instanceCount = NX * NY;
+    const u = this.shU = { uTex: { value: null }, uFrom: { value: new THREE.Vector4() }, uTo: { value: new THREE.Vector4() }, uT: { value: 0 }, uGrid: { value: new THREE.Vector2(NX, NY) }, uDepth: { value: 0.05 } };
     const mat = new THREE.ShaderMaterial({
-      uniforms: this.capU,
-      vertexShader: `varying vec2 vUv; void main(){ vUv = uv; vec3 p = position; p.z += (cos(p.x/1.9*1.5708)-1.)*.22; gl_Position = projectionMatrix*modelViewMatrix*vec4(p,1.); }`,
-      fragmentShader: NOISE + `uniform sampler2D uA, uB, uC; uniform float uIdx, uAlpha, uTime; varying vec2 vUv;
-        vec3 pick(float i){ return i < .5 ? texture2D(uA, vUv).rgb : (i < 1.5 ? texture2D(uB, vUv).rgb : texture2D(uC, vUv).rgb); }
+      uniforms: u,
+      vertexShader: /* glsl */`
+        attribute vec2 aCell; attribute vec4 aRand;
+        uniform vec4 uFrom, uTo; uniform float uT, uDepth; uniform vec2 uGrid;
+        varying vec2 vUv, vLocal; varying vec3 vN; varying float vFront, vLift;
+        mat3 rot(vec3 a){ float cx=cos(a.x), sx=sin(a.x), cy=cos(a.y), sy=sin(a.y), cz=cos(a.z), sz=sin(a.z);
+          return mat3(cy*cz, cy*sz, -sy, sx*sy*cz-cx*sz, sx*sy*sz+cx*cz, sx*cy, cx*sy*cz+sx*sz, cx*sy*sz-sx*cz, cx*cy); }
         void main(){
-          float i0 = floor(uIdx), k = fract(uIdx);
-          float n = noise(vUv*vec2(9.,5.)) *.8 + noise(vUv*40.)*.2;
-          float w = smoothstep(n-.08, n+.08, k*1.2-.1);
-          vec3 c = mix(pick(i0), pick(min(i0+1., 2.)), w);
-          float edge = exp(-pow((n-(k*1.2-.1))*14.,2.))*step(.01,k)*step(k,.99);
-          c += edge*vec3(1.,.75,.35)*.8;
-          float frame = step(.004, vUv.x)*step(vUv.x, .996)*step(.007, vUv.y)*step(vUv.y, .993);
-          c = mix(vec3(.25,.28,.3), c, frame);
-          gl_FragColor = vec4(c*uAlpha, 1.);
+          vec2 c = (aCell + .5)/uGrid;
+          float t = clamp((uT - aRand.x*.18)/.82, 0., 1.);
+          float land = smoothstep(.32, 1., t);
+          float lift = sin(3.14159*min(t*1.15, 1.));
+          vec3 a = vec3(uFrom.xy + (c - .5)*uFrom.zw, 0.);
+          vec3 b = vec3(uTo.xy + (c - .5)*uTo.zw, 0.);
+          vec3 scatter = vec3((c - .5)*vec2(2.6, 1.8) + (aRand.yz - .5)*1.6, .9 + aRand.w*1.6);
+          vec3 p = mix(a, b, land) + scatter*lift;
+          vec2 size = mix(uFrom.zw, uTo.zw, land)/uGrid*(1. - .08*lift);
+          vec3 ang = (aRand.yzw - .5)*vec3(5., 5., 3.)*lift;
+          vec3 lp = position*vec3(size, uDepth);
+          vec3 w = rot(ang)*lp + p;
+          vN = normalize(rot(ang)*normal);
+          vFront = step(.5, normal.z);
+          vUv = c + position.xy/uGrid;
+          vLocal = position.xy; vLift = lift;
+          gl_Position = projectionMatrix*viewMatrix*vec4(w, 1.);
+        }`,
+      fragmentShader: /* glsl */`
+        uniform sampler2D uTex; varying vec2 vUv, vLocal; varying vec3 vN; varying float vFront, vLift;
+        void main(){
+          vec3 img = texture2D(uTex, vUv).rgb;
+          float vEdge = max(abs(vLocal.x), abs(vLocal.y))*2.;
+          vec3 side = vec3(.55, .62, .7)*(.25 + .6*max(0., dot(vN, normalize(vec3(.3, .8, .6)))));
+          vec3 c = mix(side, img, vFront);
+          c += vec3(.9, .95, 1.)*pow(vEdge, 18.)*.4*vFront*smoothstep(0., .25, vLift);   // a glass edge while it flies, gone once it lands
+          c += vec3(1.)*pow(max(0., dot(vN, normalize(vec3(-.4, .6, .7)))), 24.)*.6*vLift; // a glint as it turns
+          gl_FragColor = vec4(c, 1.);
         }`,
     });
-    this.capPlane = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 3.8 * 9 / 16, 32, 1), mat);
-    this.capPlane.visible = false;
-    this.dark.add(this.capPlane);
+    this.shards = new THREE.Mesh(geo, mat);
+    this.shards.frustumCulled = false; this.shards.visible = false;
+    this.dark.add(this.shards);
+    this.hidden = new Set();
   }
 
-  buildLight() {
-    // faint ink grid is drawn in post; the light scene holds only the outline mark and the signal bar
-  }
+  // rects in CSS px: { x, y (centre), w, h }
+  rectWorld(r) { const px = this.pxWorld(); return new THREE.Vector4((r.x - this.w / 2) * px, -(r.y - this.h / 2) * px, r.w * px, r.h * px); }
+  shatter(tex, from) { this.shU.uTex.value = tex; this.shU.uFrom.value.copy(this.rectWorld(from)); this.shU.uTo.value.copy(this.shU.uFrom.value); this.shU.uT.value = 0; this.shards.visible = true; }
+  shatterTo(to) { this.shU.uTo.value.copy(this.rectWorld(to)); }
+  get shatterT() { return this.shU.uT.value; }
+  set shatterT(v) { this.shU.uT.value = v; }
+  shatterEnd() { this.shards.visible = false; }
+  hideSlab(i, on) { if (on) this.hidden.add(i); else this.hidden.delete(i); }
 
   buildPost() {
     const r = this.renderer;
@@ -427,18 +500,18 @@ export class GL {
     ];
     const timeout = new Promise((res) => setTimeout(res, 9000, 'timeout'));
     const work = (async () => {
-      await document.fonts?.load('800 100px Archivo').catch(() => {});
-      this.wordMat.map = wordTexture('WORK'); this.wordMat.needsUpdate = true;
       const atlas = document.createElement('canvas'); atlas.width = 2048; atlas.height = 576;
       const ag = atlas.getContext('2d'); ag.fillStyle = '#000'; ag.fillRect(0, 0, 2048, 576);
       const ims = await Promise.all(slots.map((s) => loadImage(asset(s))));
       ims.forEach((im, i) => { if (im) ag.drawImage(im, (i % 4) * 512, Math.floor(i / 4) * 288, 512, 288); this.onProgress?.((i + 1) / (slots.length + 4)); });
       const at = new THREE.CanvasTexture(atlas); at.colorSpace = THREE.SRGBColorSpace; at.flipY = false;
       this.wallU.uAtlas.value = at;
+      // the projects' first images, for the slabs that carry them
       const big = await Promise.all(CONTENT.projects.map((p) => loadImage(asset(`img/work/${p.slug}-1.jpg`))));
+      this.projectTex = {};
       big.forEach((im, i) => {
         const t = new THREE.Texture(im || undefined); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.needsUpdate = !!im;
-        this.panels[i].u.uTex.value = t;
+        this.projectTex[CONTENT.projects[i].slug] = t;
         this.onProgress?.((slots.length + 1 + i * 0.75) / (slots.length + 4));
       });
       this.renderer.compile(this.dark, this.camera);
@@ -448,27 +521,12 @@ export class GL {
     this.onProgress?.(1);
   }
 
-  // video elements from the page become textures for the capability plane
-  setVideos(videos) {
-    const keys = ['uA', 'uB', 'uC'];
-    this.videos = videos;
-    videos.slice(0, 3).forEach((v, i) => { const t = new THREE.VideoTexture(v); t.colorSpace = THREE.SRGBColorSpace; this.capU[keys[i]].value = t; });
-    if (videos.length) for (let i = videos.length; i < 3; i++) this.capU[keys[i]].value = this.capU.uA.value;
-  }
-
   // ---------- controls used by the page ----------
   set(target) { Object.assign(this.target, target); }
   setPointer(x, y) {
     const p = this.pointer;
     const nx = x / this.w, ny = 1 - y / this.h;
     p.dx += nx - p.x; p.dy += ny - p.y; p.x = nx; p.y = ny; p.moved = true;
-  }
-  // where a DOM rect sits in world space at z = 0 (used to land the mark in the outro wordmark)
-  rectToWorld(rect, camZ) {
-    const halfH = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * camZ;
-    const halfW = halfH * this.camera.aspect;
-    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
-    return { x: (cx / this.w * 2 - 1) * halfW, y: -(cy / this.h * 2 - 1) * halfH, s: (rect.height / this.h) * halfH };
   }
   camZFor(z) { const a = this.w / this.h; return z * Math.max(1, 0.62 / a); }
 
@@ -489,6 +547,74 @@ export class GL {
     this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
   }
 
+  // ---------- slab poses ----------
+  // every pose is a screen position in CSS px plus a height in px, mapped onto the z = 0 plane the camera looks at
+  placeSlabs(t) {
+    const S = this.state;
+    const camDist = this.camera.position.z;
+    const px = 2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * camDist / this.h;   // world units per CSS px
+    const wx = (x) => (x - this.w / 2) * px, wy = (y) => -(y - this.h / 2) * px;
+
+    // the group's orientation: a slow sway, the developer gizmo on top
+    const idle = t * 0.35 * S.spin;
+    const e = new THREE.Euler(S.mrx + Math.sin(t * 0.5) * 0.06 * S.spin, S.mry + Math.sin(idle) * 0.55 * S.spin, Math.sin(t * 0.3) * 0.03 * S.spin);
+    this.groupQ.setFromEuler(e).premultiply(this.userQ);
+
+    const top = MARK.floors - 1;
+    const local = new THREE.Vector3(), gp = new THREE.Vector3(), fp = new THREE.Vector3(), q = new THREE.Quaternion(), fq = new THREE.Quaternion();
+    const tilt = new THREE.Euler();
+    const pt = this.pointer;
+    for (const sl of this.slabs) {
+      const T = sl.t;
+      sl.hover += (T.hover - sl.hover) * 0.12;
+      // in the group: where this floor sits in the A, floors pushed apart by spread, stacking in after the loader
+      const k = Math.min(1, Math.max(0, this.assemble * 1.7 - (top - sl.floor) * 0.1));
+      const ek = 1 - Math.pow(1 - k, 3);
+      const drift = Math.sin(t * 0.9 + sl.floor * 0.8) * 0.018 * S.spin;
+      const u = S.gu * px;                                     // world units per mark unit
+      // dx, dy, rot: a nudge in mark units, used when someone pulls a floor out of the finished A
+      local.set((sl.home.x - 50 + T.dx) * u, -((sl.home.y - 50) * S.spread + T.dy) * u + (1 - ek) * 0.9 * u * 50, (1 - ek) * 0.6 + drift);
+      local.applyQuaternion(this.groupQ);
+      gp.set(wx(S.gx), wy(S.gy), S.gz).add(local);
+      const gs = (sl.home.h * u) / sl.h;
+      // out on its own: flat to the camera, leaning a little toward the pointer, lifted when hovered
+      fp.set(wx(T.x), wy(T.y), T.z + sl.hover * 0.22);
+      const fs = (T.h * px) / sl.h;
+      const lean = 0.05 + 0.1 * sl.hover;
+      tilt.set(-(pt.y - 0.5) * lean, (pt.x - 0.5) * lean, 0);
+      fq.setFromEuler(tilt);
+      // blend
+      const g = T.g;
+      sl.mesh.position.lerpVectors(fp, gp, g);
+      q.copy(fq).slerp(this.groupQ, g);
+      sl.mesh.quaternion.copy(q);
+      if (g > 0.999) sl.mesh.rotation.z += (1 - ek) * (sl.floor % 2 ? 0.08 : -0.08) + T.rot;
+      const s = fs + (gs - fs) * g;
+      const appear = 0.001 + 0.999 * Math.min(1, (g > 0.5 ? k : 1) * 3);
+      sl.mesh.scale.setScalar(s * appear);
+      sl.mesh.morphTargetInfluences[0] = 1 - g;              // chunky in the A, a thin pane on its own
+      sl.mesh.visible = !(T.hide > 0.5) && s > 0.0005 && !this.hidden.has(sl.i);
+      sl.edges.position.copy(sl.mesh.position); sl.edges.quaternion.copy(sl.mesh.quaternion); sl.edges.scale.copy(sl.mesh.scale);
+      sl.edges.visible = sl.mesh.visible;
+
+      // material: frosted in the A, clear once it carries something; thin glass refracts less
+      const m = sl.mat;
+      const eff = 1.1 + (0.1 - 1.1) * (1 - g);
+      m.thickness = eff / Math.max(0.2, s);
+      m.roughness = (this.frostOverride ?? S.frost) * g + (T.frost >= 0 ? T.frost : 0.015) * (1 - g);
+      // a pane facing the camera would mirror the studio's fill light over its picture: keep reflections for the A
+      if (!sl.amber) { m.iridescence = 0.12 + 0.88 * g; m.envMapIntensity = 0.45 + 1.25 * g; m.clearcoat = 0.25 + 0.75 * g; m.attenuationDistance = g > 0.5 ? 3 : 60; }
+      m.opacity = 1 - S.flat * g;
+      if (sl.amber) m.emissiveIntensity = 0.08 + 0.3 * Math.pow(0.5 + 0.5 * Math.sin(t * Math.PI), 3) + S.signal * (1 - g) * 0.9;
+      if (sl.content) {
+        const c = sl.content;
+        c.mesh.visible = T.develop > 0.002 && sl.mesh.visible;
+        c.u.uDev.value = T.develop; c.u.uHover.value = sl.hover;
+      }
+    }
+    this.outlineMat.opacity = 0.7; this.outlineBarMat.opacity = 0.9;
+  }
+
   // ---------- frame ----------
   render(dt) {
     this.time += dt;
@@ -501,79 +627,16 @@ export class GL {
     this.instant = false;
     const t = this.time;
 
-    // camera
-    const camZ = this.camZFor(S.camZ);
-    this.camera.position.set(S.camX, S.camY, camZ);
-    this.camera.lookAt(S.camX * 0.5, S.camY * 0.6, 0);
+    // camera: fixed, so the page's layout maps straight onto the glass
+    this.camera.position.set(0, 0, this.camZFor(S.camZ));
+    this.camera.lookAt(0, 0, 0);
+    this.camera.updateMatrixWorld();
 
-    // mark
-    const idle = t * 0.35 * S.spin;
-    this.markPivot.position.set(S.mx, S.my, S.mz);
-    this.markPivot.scale.setScalar(Math.max(0.0001, S.ms));
-    const e = new THREE.Euler(S.mrx + Math.sin(t * 0.5) * 0.06 * S.spin, S.mry + Math.sin(idle) * 0.55, Math.sin(t * 0.3) * 0.03 * S.spin);
-    this.mark.quaternion.setFromEuler(e).premultiply(this.userQ);
-    this.markPivot.visible = S.ms > 0.01;
-    this.glass.roughness = this.frostOverride ?? S.frost;
-    this.glass.opacity = 1 - S.flat;
-    this.barGlass.opacity = 1 - S.flat;
-    this.barGlass.emissiveIntensity = 0.08 + 0.3 * Math.pow(0.5 + 0.5 * Math.sin(t * Math.PI), 3);   // the cursor breathes
-
-    // signal bar: grows out of the crossbar across the whole screen
-    const sb = S.bar;
-    const shown = sb > 0.002;
-    for (const m of [this.signalDark, this.signalLight]) {
-      m.visible = shown;
-      if (!shown) continue;
-      const ease = sb * sb * (3 - 2 * sb);
-      const r = this.barRest;
-      const s = S.ms;
-      m.position.set(S.mx + r.x * s * (1 - ease), S.my + r.y * s, S.mz + 0.25);
-      m.scale.set(r.w * s * (1 + ease * 60), r.h * s * (1 - 0.35 * ease), 0.3 * s);
-    }
-    this.markBar.visible = sb < 0.05;
-
-    // outline copy of the mark for the light scene
-    this.outline.position.copy(this.markPivot.position);
-    this.outline.scale.copy(this.markPivot.scale);
-    this.outline.quaternion.copy(this.mark.quaternion);
-    this.outline.visible = this.markPivot.visible;
-    this.outlineMat.opacity = 0.7 - 0.35 * sb;
-    this.outlineBar.visible = sb < 0.05;
+    this.placeSlabs(t);
 
     // wall
     this.wall.visible = S.wall > 0.01;
     this.wallU.uAmt.value = S.wall; this.wallU.uTime.value = t;
-    this.wall.position.y = 0.3 + S.camY * 0.4;
-
-    // giant word
-    this.word.visible = S.word > 0.01;
-    this.wordMat.color.setScalar(S.word * 0.9);
-    this.word.position.x = S.wordX;
-
-    // carousel
-    this.carousel.visible = S.car > 0.01;
-    if (this.carousel.visible) {
-      this.carousel.scale.setScalar(this.w / this.h < 0.9 ? 0.82 : 1);
-      this.carousel.rotation.y = -S.carIdx * this.carStep;
-      const vel = Math.min(1, Math.abs(this.velocity) * 0.02);
-      this.panels.forEach((p, i) => {
-        const d = Math.abs(i - S.carIdx);
-        p.u.uFocus.value = Math.max(0, 1 - d);
-        p.u.uAlpha.value = S.car * Math.max(0, 1 - Math.max(0, d - 1.4));
-        p.u.uVel.value += (vel - p.u.uVel.value) * 0.1;
-        p.u.uTime.value = t;
-      });
-    }
-
-    // capability plane
-    this.capPlane.visible = S.cap > 0.01;
-    if (this.capPlane.visible) {
-      const narrow = this.w / this.h < 0.9;
-      this.capU.uAlpha.value = S.cap; this.capU.uIdx.value = S.capIdx; this.capU.uTime.value = t;
-      if (narrow) { this.capPlane.position.set(0, 0.95, 0); this.capPlane.rotation.set(0, 0, 0); this.capPlane.scale.setScalar(0.78); }
-      else { this.capPlane.position.set(-1.35, 0.05, 0.2); this.capPlane.rotation.set(0, 0.32, 0); this.capPlane.scale.setScalar(1); }
-      this.capPlane.position.y += Math.sin(t * 0.6) * 0.03;
-    }
 
     this.bgU.uSub.value = S.sub;
 
@@ -611,5 +674,5 @@ export class GL {
     this.final.render(r, this.ortho, null);
   }
 
-  getQuaternion() { return this.mark.quaternion; }
+  getQuaternion() { return this.groupQ; }
 }

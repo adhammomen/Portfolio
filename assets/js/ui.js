@@ -43,37 +43,35 @@ export function lettersOut(el) {
   return g.to(chars, { y: -10, opacity: 0, duration: 0.4, ease: 'power2.in', stagger: 0.02 });
 }
 
-// ---------- loader: construction lines draw the mark, the cursor blinks, the tagline types ----------
+// ---------- loader: construction lines, then the mark is built floor by floor from the bottom up ----------
 export function buildLoader(root) {
   const svg = root.querySelector('.loader-lines');
   const NS = 'http://www.w3.org/2000/svg';
   const el = (tag, attrs, cls) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (cls) e.setAttribute('class', cls); svg.append(e); return e; };
-  const B = MARK.body, b = MARK.bar;
+  const B = MARK.body;
   const line = (p, q, cls) => {
     // extend the segment p→q across the drawing so it reads as a guide, not an edge
     const dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L, ext = 46;
     return el('line', { x1: p[0] - ux * ext, y1: p[1] - uy * ext, x2: q[0] + ux * ext, y2: q[1] + uy * ext }, cls);
   };
+  const levels = [...new Set(MARK.slabs.map((s) => s.y))];
   const guides = [
-    el('line', { x1: -60, y1: 0, x2: 160, y2: 0 }, 'g'),
+    ...levels.map((y) => el('line', { x1: -60, y1: y, x2: 160, y2: y }, 'g')),
     el('line', { x1: -60, y1: 100, x2: 160, y2: 100 }, 'g'),
-    el('line', { x1: -60, y1: b.y, x2: 160, y2: b.y }, 'g'),
-    el('line', { x1: -60, y1: b.y + b.h, x2: 160, y2: b.y + b.h }, 'g'),
-    line(B[0], B[6], 'g'), line(B[1], B[2], 'g'), line(B[4], B[5], 'g'), line(B[4], B[3], 'g'),
+    line(B[0], B[6], 'g'), line(B[1], B[2], 'g'),
   ];
   const dashed = [
     el('line', { x1: 50, y1: -40, x2: 50, y2: 140 }, 'd'),
     el('circle', { cx: 50, cy: 60, r: 58 }, 'd'),
     el('circle', { cx: 50, cy: 60, r: 30 }, 'd'),
-    el('line', { x1: -60, y1: 34, x2: 160, y2: 34 }, 'd'),
+    line(B[4], B[5], 'd'), line(B[4], B[3], 'd'),
   ];
-  const d = 'M' + B.map((p) => p.join(' ')).join('L') + 'Z';
-  const bar = `M${b.x} ${b.y}h${b.w}v${b.h}h${-b.w}Z`;
-  const fill = el('path', { d }, 'fill');
-  const fillBar = el('path', { d: bar }, 'fillbar');
-  const outline = el('path', { d }, 'm');
-  const outlineBar = el('path', { d: bar }, 'mb');
-  return { svg, guides, dashed, outline, outlineBar, fill, fillBar };
+  // bottom floor first: the order the A is built in
+  const order = [...MARK.slabs].sort((a, b) => b.y - a.y || a.x - b.x);
+  const rect = (s, cls) => el('rect', { x: s.x, y: s.y, width: s.w, height: s.h, rx: MARK.radius }, cls);
+  const fills = order.map((s) => rect(s, s.amber ? 'fillbar' : 'fill'));
+  const outlines = order.map((s) => rect(s, s.amber ? 'mb' : 'm'));
+  return { svg, guides, dashed, outlines, fills, bar: fills.find((f) => f.classList.contains('fillbar')) };
 }
 
 export function playLoader(root, parts, { fast = false } = {}) {
@@ -87,11 +85,12 @@ export function playLoader(root, parts, { fast = false } = {}) {
     tl.to(els, { strokeDashoffset: 0, duration: dur, stagger }, at);
   };
   g.set(parts.dashed, { opacity: 0 });
-  draw(parts.guides, 0.9, 0.06, 0);
+  draw(parts.guides, 0.9, 0.05, 0);
   tl.to(parts.dashed, { opacity: 1, duration: 0.8, stagger: 0.1 }, 0.25);
-  draw([parts.outline, parts.outlineBar], 1.0, 0.15, 0.6);
-  tl.to(parts.fill, { opacity: 1, duration: 0.5 }, 1.5);
-  tl.to(parts.fillBar, { keyframes: [{ opacity: 1, duration: 0.01 }, { opacity: 0, duration: 0.01, delay: 0.25 }, { opacity: 1, duration: 0.01, delay: 0.25 }] }, 1.5);
+  draw(parts.outlines, 0.5, 0.07, 0.55);
+  // each floor drops into place on the one below
+  tl.fromTo(parts.fills, { opacity: 0, y: -7 }, { opacity: 1, y: 0, duration: 0.42, ease: 'power3.out', stagger: 0.08 }, 1.05);
+  tl.to(parts.bar, { keyframes: [{ opacity: 0.15, duration: 0.01, delay: 0.2 }, { opacity: 1, duration: 0.01, delay: 0.22 }, { opacity: 0.15, duration: 0.01, delay: 0.22 }, { opacity: 1, duration: 0.01, delay: 0.22 }] }, '>');
   tl.to({ n: 0 }, { n: full.length, duration: full.length * 0.035, ease: 'none', onUpdate() { text.textContent = full.slice(0, Math.round(this.targets()[0].n)); } }, 1.1);
   if (fast) tl.timeScale(2.6);
   return tl;

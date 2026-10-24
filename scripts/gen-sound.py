@@ -1,5 +1,5 @@
-# Synthesizes the site sound: one ambient loop and three short effects, as 16-bit WAVs.
-# Usage: python3 scripts/gen-sound.py <outdir>, then encode to assets/sound/*.mp3 with ffmpeg (libmp3lame, 160k ambient, 128k effects).
+# Synthesizes the site's three short effects as 16-bit WAVs. The music itself is generated live in the browser (assets/js/music.js).
+# Usage: python3 scripts/gen-sound.py <outdir>, then encode to assets/sound/*.mp3 with ffmpeg (libmp3lame, 128k).
 import numpy as np, wave, sys, os
 SR = 44100
 out = sys.argv[1]
@@ -20,46 +20,6 @@ def onepole(x, a):  # simple low-pass, a in 0..1 (higher = darker); vectorised v
     return y
 
 lp = onepole
-
-t_len = 32.0
-N = int(SR * (t_len + 4))
-t = np.arange(N) / SR
-mid = lambda m: 440 * 2 ** ((m - 69) / 12)
-
-# --- ambient loop: two slow chords (Dsus2 → Bbmaj7(#11) colour), detuned sine/triangle pads, air, a quiet heartbeat
-chords = [[38, 45, 52, 57, 64], [34, 41, 50, 57, 62]]
-pad = np.zeros(N)
-for ci, ch in enumerate(chords):
-    # each chord lasts 16 s with raised-cosine crossfades, loops over 32 s
-    phase = (t - ci * 16) % 32
-    env = np.clip(np.minimum(phase / 4, (20 - phase) / 4), 0, 1) * (phase < 20)
-    env = 0.5 - 0.5 * np.cos(np.pi * env)
-    for k, m in enumerate(ch):
-        f = mid(m)
-        for det in (-0.07, 0.0, 0.06):
-            ff = f * 2 ** (det / 12)
-            lfo = 1 + 0.002 * np.sin(2 * np.pi * (0.05 + 0.01 * k) * t)
-            pad += env * (0.6 if k < 2 else 0.35) * np.sin(2 * np.pi * ff * t * lfo + rng.random() * 6.28)
-pad /= 12
-# slow filter sweep by mixing a darker copy
-air = rng.standard_normal(N) * 0.02
-air = lp(air, 0.995)
-air *= 0.6 + 0.4 * np.sin(2 * np.pi * t / 16) ** 2
-beat = np.zeros(N)
-for s in np.arange(0, t_len + 4, 2.0):  # heartbeat every 2 s, like a status light
-    i = int(s * SR); L = int(0.09 * SR)
-    if i + L < N:
-        tt = np.arange(L) / SR
-        beat[i:i + L] += np.sin(2 * np.pi * 62 * tt) * np.exp(-tt * 38) * 0.35
-bgm = pad + air * 6 + beat
-# seamless: fold the last 4 s onto the start with an equal-power crossfade
-L = int(4 * SR); body = bgm[:int(t_len * SR)].copy(); tail = bgm[int(t_len * SR):int(t_len * SR) + L]
-fade = np.linspace(0, 1, L)
-body[:L] = body[:L] * np.sqrt(fade) + tail * np.sqrt(1 - fade)
-# gentle stereo width
-d = int(0.011 * SR)
-right = np.concatenate([body[-d:], body[:-d]])
-write('ambient', np.stack([body, right * 0.97 + body * 0.03], 1))
 
 # --- work_in: filtered noise whoosh with a low thump
 n = int(1.1 * SR); tt = np.arange(n) / SR
