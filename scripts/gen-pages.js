@@ -139,8 +139,9 @@ function home() {
   const head = (f, extra = '') => `<p class="fl-head mono"><span class="fl-no">F${f}</span><span class="fl-name">${esc(F[f].name)}</span>${extra}<span class="fl-dim">${fl(f).w} × ${MARK.h}</span></p>`;
   const plan = (f, inner) => `<div class="plan">${inner}</div>`;
   const flIn = (f) => `<div class="fl-in" style="--ext:${fl(f).w}">`;
-  const slot = (s, e, inner = '', cls = '') => `<div class="slot ${cls}" data-slab="${s.i}" style="${pos(s, e)}"><i class="slot-g" aria-hidden="true"><b></b><b></b><b></b><b></b></i>${inner}</div>`;
-  const under = (s, e, inner) => `<div class="under" style="${upos(s, e)}">${inner}</div>`;
+  const k = (s, e) => e.slabs.indexOf(s);
+  const slot = (s, e, inner = '', cls = '') => `<div class="slot ${cls}" data-slab="${s.i}" data-k="${k(s, e)}" style="${pos(s, e)}"><i class="slot-g" aria-hidden="true"><b></b><b></b><b></b><b></b></i>${inner}</div>`;
+  const under = (s, e, inner) => `<div class="under" data-k="${k(s, e)}" style="${upos(s, e)}">${inner}</div>`;
 
   // TOC: the exploded A
   const tb = tocBox();
@@ -241,7 +242,7 @@ ${projectFloor(4)}
 
   <section class="sec sec-outro" data-sec="outro">
     <div class="pin">
-      <div class="ot-ground" aria-hidden="true"><i></i><p class="mono"><span>F0 – F6</span><span>${MARK.floors} floors · ${MARK.slabs.length} slabs · rebuilt</span></p></div>
+      <div class="ot-ground" aria-hidden="true"><i></i><p class="mono"><span>F0 – F6</span><span>${MARK.floors} floors · ${MARK.slabs.length} slabs · rebuilt</span><span class="ot-hint">Pull a floor out</span></p></div>
       <p class="ot-word" aria-label="${esc(C.name)}">${mark('ot-mark')}<span class="ot-rest" data-split>DHAM MOMEN</span></p>
       <p class="ot-line">${esc(C.tagline)} <a href="${r}contact/" data-link class="ot-cta">Write to me ${arrow}</a></p>
     </div>
@@ -330,7 +331,7 @@ function about() {
       <ul class="ab-now">${now.map((p) => `<li><a href="${r}work/${p.slug}/" data-link><span class="ab-now-t">${esc(p.title)}</span><span class="code">${esc(p.kind)}</span>${statusChip(p)}</a></li>`).join('')}</ul>
 
       <p class="ab-label mono">This site</p>
-      <div class="ab-colophon"><p>Hand-built with three.js, GSAP and Lenis, no framework. The glass mark is extruded from an SVG in the browser and lit by an environment that is generated, not photographed. The three capability videos are rendered from shaders, and the sound is synthesized by a script in the repository.</p><p>Type: Archivo, IBM Plex Sans, IBM Plex Mono, Google Sans Code and Libre Caslon Display, all under the Open Font License.</p></div>
+      <div class="ab-colophon"><p>Hand-built with three.js, GSAP and Lenis, no framework. The glass mark is extruded from an SVG in the browser and lit by an environment that is generated, not photographed. The three capability videos are rendered from shaders, and the music is generated live in your browser, one note for every floor of the A.</p><p>Type: Archivo, IBM Plex Sans, IBM Plex Mono, Google Sans Code and Libre Caslon Display, all under the Open Font License.</p></div>
     </div>
   </section>`;
   return { file: 'about/index.html', html: shell({ r, page: 'about', title: `About · ${C.name}`, desc: C.intro, main }) };

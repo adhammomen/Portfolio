@@ -4,6 +4,7 @@
 // At the bottom the A rebuilds itself and lands as the first letter of the name.
 import { lettersIn, split } from './ui.js';
 import { MARK } from './mark.js';
+import { Toy } from './toy.js';
 
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const smooth = (t) => t * t * (3 - 2 * t);
@@ -57,6 +58,10 @@ export class Home {
       setTimeout(() => { b.textContent = 'Copy'; }, 1800);
     }));
 
+    // the toy at the landing: mouse and trackpad only
+    if (matchMedia('(pointer: fine)').matches) this.toy = new Toy({ gl, sound });
+    this.last = performance.now();
+
     this.layout();
     if (document.fonts?.ready) document.fonts.ready.then(() => this.layout());
   }
@@ -83,7 +88,9 @@ export class Home {
     const toc = this.main.querySelector('.toc-a');
     this.box = { hero: boxOf(this.main.querySelector('.hero-a')), toc: boxOf(toc), spread: +toc.dataset.spread || 1.9 };
     this.box.outro = this.otMark ? boxOf(this.otMark, true) : this.box.hero;
-    this.box.land = { x: window.innerWidth / 2, y: this.vh * 0.5, u: this.vh * 0.0056 };
+    const lu = Math.min(this.vh * 0.0056, window.innerWidth * 0.0104);
+    this.box.land = { x: window.innerWidth / 2, y: this.vh * 0.5, u: lu };
+    if (this.ground) this.ground.style.top = `${this.vh * 0.5 + 50 * lu + 10}px`;   // just under the A's feet
   }
 
   goTo(floor) {
@@ -194,6 +201,12 @@ export class Home {
     for (const el of this.otText) el.style.opacity = ramp(p, P.outro - 0.16, P.outro - 0.02).toFixed(3);
     if (this.ground) { this.ground.style.opacity = ground.toFixed(3); this.ground.classList.toggle('is-on', ground > 0.5); }
     if (edgeOnce('land', ground > 0.6)) this.sound.chord();
+    if (this.toy) {
+      const now = performance.now(), dt = (now - this.last) / 1000; this.last = now;
+      const on = Math.abs(p - P.land) < 0.06;
+      if (on) { this.toy.box = this.box.land; this.toy.active = true; this.toy.step(dt); }
+      else if (this.toy.active) { this.toy.active = false; this.toy.reset(); }
+    }
 
     // ---------- text layers ----------
     const win = (c, a = 0.3, b = 0.47) => 1 - ramp(Math.abs(p - c), a, b);
@@ -242,6 +255,7 @@ export class Home {
   destroy() {
     this.videos.forEach((v) => v.pause());
     this.cleanup.forEach((f) => f());
+    this.toy?.destroy();
     this.gl.resetSlabs();
     this.dockRects.forEach((r) => r.classList.remove('is-read', 'is-here'));
     MARK.slabs.forEach((sl) => this.sound.hold(sl.i, false));

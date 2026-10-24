@@ -5,6 +5,7 @@ import { Home } from './home.js';
 import { mountPage } from './pages.js';
 import { Sound } from './sound.js';
 import { buildLoader, playLoader, hideLoader, devPanel } from './ui.js';
+import { MARK } from './mark.js';
 
 const root = document.documentElement;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -167,7 +168,7 @@ document.addEventListener('visibilitychange', () => sound.visibility(document.hi
 // snap to the nearest resting frame once the wheel stops (mouse and trackpad only)
 if (lenis && gl && fine && !new URLSearchParams(location.search).has('nosnap')) {
   let snapT;
-  lenis.on('scroll', () => { clearTimeout(snapT); snapT = setTimeout(() => { if (!lenis.isSmooth) page?.home?.maybeSnap(lenis.scroll); }, 170); });
+  lenis.on('scroll', () => { clearTimeout(snapT); snapT = setTimeout(() => { if (!lenis.isSmooth && !page?.home?.autoplay) page?.home?.maybeSnap(lenis.scroll); }, 170); });
 }
 
 // ---------- frame loop ----------
@@ -235,5 +236,23 @@ function offerSound() {
 }
 
 boot();
+
+// ---------- secrets ----------
+// for whoever opens the console
+const ascii = Array.from({ length: MARK.floors }, (_, f) => Array.from({ length: 40 }, (_, c) => (MARK.slabs.some((sl) => sl.floor === f && c * 2.5 + 1.25 >= sl.x && c * 2.5 + 1.25 <= sl.x + sl.w) ? '▀' : ' ')).join('')).join('\n');
+console.log('%c' + ascii, 'font: 10px/1.25 monospace; color: #eef1f3');
+console.log('%cSeven floors, ten slabs, one A. Built by hand. Type "build" on the homepage.', 'font: 12px monospace; color: #ffb43a');
+// typing "build" on the homepage makes the whole site build itself, top to bottom, at speed
+let typed = '';
+document.addEventListener('keydown', (e) => {
+  if (e.target.closest?.('input, textarea')) return;
+  typed = (typed + e.key).slice(-5).toLowerCase();
+  if (typed !== 'build' || !page?.home || !lenis) return;
+  typed = '';
+  const home = page.home;
+  lenis.scrollTo(0, { immediate: true, force: true });
+  home.autoplay = true;
+  setTimeout(() => lenis.scrollTo(home.P.land * innerHeight, { duration: 9, easing: (t) => t, force: true, onComplete: () => { home.autoplay = false; } }), 250);
+});
 // ?debug exposes the internals and lets tweens run in real time even when frames are slow (software rendering)
 if (new URLSearchParams(location.search).has('debug')) { window.__am = { gl, lenis, get page() { return page; } }; window.addEventListener('load', () => { window.gsap?.ticker.lagSmoothing(0); const k = +new URLSearchParams(location.search).get('slow'); if (k) window.gsap.globalTimeline.timeScale(k); }); }

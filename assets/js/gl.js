@@ -25,7 +25,7 @@ export const DEFAULTS = {
   mrx: 0, mry: 0, spin: 1, frost: 0.14,
   wall: 1, curtain: 0, dissolve: 0, sub: 0, grid: 1, flat: 0, signal: 0,
 };
-const SLAB_DEFAULT = { g: 1, x: 0, y: 0, h: 10, z: 0, develop: 0, hover: 0, hide: 0, frost: -1 };
+const SLAB_DEFAULT = { g: 1, x: 0, y: 0, h: 10, z: 0, develop: 0, hover: 0, hide: 0, frost: -1, dx: 0, dy: 0, rot: 0 };
 
 const FS_VERT = /* glsl */`varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }`;
 const NOISE = /* glsl */`
@@ -572,7 +572,8 @@ export class GL {
       const ek = 1 - Math.pow(1 - k, 3);
       const drift = Math.sin(t * 0.9 + sl.floor * 0.8) * 0.018 * S.spin;
       const u = S.gu * px;                                     // world units per mark unit
-      local.set((sl.home.x - 50) * u, -(sl.home.y - 50) * S.spread * u + (1 - ek) * 0.9 * u * 50, (1 - ek) * 0.6 + drift);
+      // dx, dy, rot: a nudge in mark units, used when someone pulls a floor out of the finished A
+      local.set((sl.home.x - 50 + T.dx) * u, -((sl.home.y - 50) * S.spread + T.dy) * u + (1 - ek) * 0.9 * u * 50, (1 - ek) * 0.6 + drift);
       local.applyQuaternion(this.groupQ);
       gp.set(wx(S.gx), wy(S.gy), S.gz).add(local);
       const gs = (sl.home.h * u) / sl.h;
@@ -587,7 +588,7 @@ export class GL {
       sl.mesh.position.lerpVectors(fp, gp, g);
       q.copy(fq).slerp(this.groupQ, g);
       sl.mesh.quaternion.copy(q);
-      if (g > 0.999) sl.mesh.rotation.z += (1 - ek) * (sl.floor % 2 ? 0.08 : -0.08);
+      if (g > 0.999) sl.mesh.rotation.z += (1 - ek) * (sl.floor % 2 ? 0.08 : -0.08) + T.rot;
       const s = fs + (gs - fs) * g;
       const appear = 0.001 + 0.999 * Math.min(1, (g > 0.5 ? k : 1) * 3);
       sl.mesh.scale.setScalar(s * appear);
